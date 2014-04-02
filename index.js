@@ -45,7 +45,6 @@ require('methods').forEach(function (method) {
     else if (typeof args[0] === 'function') {
       args.unshift(this.url);
     }
-    console.log(args);
     request[method].apply(request, args);
   };
 });
