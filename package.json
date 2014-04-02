@@ -1,0 +1,42 @@
+{
+  "name": "simple-api-client",
+  "version": "0.0.0",
+  "description": "quickly create a simple and extendable api-client",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tjmehta/simple-api-client.git"
+  },
+  "keywords": [
+    "api",
+    "client",
+    "api",
+    "client",
+    "easy",
+    "simple",
+    "quick",
+    "base",
+    "api",
+    "client",
+    "base",
+    "class",
+    "base"
+  ],
+  "author": "Tejesh Mehta",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tjmehta/simple-api-client/issues"
+  },
+  "homepage": "https://github.com/tjmehta/simple-api-client",
+  "devDependencies": {
+    "should": "~3.2.0",
+    "mocha": "~1.18.2"
+  },
+  "dependencies": {
+    "methods": "~0.1.0",
+    "request": "~2.34.0"
+  }
+}
