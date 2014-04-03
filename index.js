@@ -1,3 +1,5 @@
+var p = require('path');
+
 var urlPathJoin = function (/* urlParts */) {
   var urlParts = Array.prototype.slice.call(arguments);
 
@@ -31,13 +33,16 @@ require('methods').forEach(function (method) {
 
     if (typeof args[0] === 'string') {
       path = args[0];
+      path = joinIfArray(path);
       args[0] = path ?
         urlPathJoin(this.url, path) :
         this.url;
     }
     else if (typeof args[0] === 'object') {
-      path = args[0].path;
       delete args[0].uri;
+      delete args[0].url;
+      path = args[0].path;
+      path = joinIfArray(path);
       args[0].url = path ?
         urlPathJoin(this.url, path) :
         this.url;
@@ -48,3 +53,9 @@ require('methods').forEach(function (method) {
     request[method].apply(request, args);
   };
 });
+
+function joinIfArray (path) {
+  return Array.isArray(path) ?
+    p.join.apply(p, path):
+    path;
+}
