@@ -53,7 +53,20 @@ facebook.get(opts, function (err, res, body) {
 facebook.get('photos', opts, function (err, res, body) {
   // ...
 });
+
+// accepts paths as arrays or multiple strings
+
+facebook.get('photos', photoId, function (err, res, body) {
+  // ...
+});
+
+facebook.get(['photos', photoId], function (err, res, body) {
+  // ...
+});
+
 ```
+
+
 
 ## Great Base Class for Creating an ApiClient
 
