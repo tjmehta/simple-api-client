@@ -3,7 +3,7 @@ var p = require('path');
 var urlPathJoin = function (/* urlParts */) {
   var urlParts = Array.prototype.slice.call(arguments);
 
-  return urlParts.join('/').replace(/([^:])([\/]{2,})/g, '');
+  return urlParts.join('/').replace(/([^:])([\/]{2,})/g, '$1/');
 };
 
 var methodAliases = {
