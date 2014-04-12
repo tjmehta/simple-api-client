@@ -1,4 +1,8 @@
-var p = require('path');
+var path = require('path');
+var noop = function () {};
+var defaultOpts = {
+  json: true
+};
 
 var urlPathJoin = function (/* urlParts */) {
   var urlParts = Array.prototype.slice.call(arguments);
@@ -26,58 +30,56 @@ require('methods').forEach(function (method) {
   if (methodAliases[method]) {
     method = methodAliases[method];
   }
-  ApiClient.prototype[method] = function (/* args */) {
+  ApiClient.prototype[method] = function () {
+    // (array, [opts,] cb);
+    // (...strings, [opts,] cb);
+    // ([opts,] cb);
     var args = Array.prototype.slice.call(arguments);
-    var request = this.request;
-    var path = Array.isArray(args[0]) ?
-      args[0] :
-      args.filter(leftArgStrings());
-
-    var requestArgs = args.filter(notString);
-
-    if (path.length) {
-      path = joinIfArray(path);
-      args[0] = path ?
-        urlPathJoin(this.url, path) :
-        this.url;
-      requestArgs.unshift(args[0]);
+    var pathArr, opts;
+    if (Array.isArray(args[0])) {
+      // (array, ...)
+      pathArr = args.shift();
+    }
+    else if (typeof args[0] === 'string') {
+      // (...strings, ...)
+      pathArr = [];
+      while(typeof args[0] === 'string') {
+        pathArr.push(args.shift());
+      }
     }
     else if (typeof args[0] === 'object') {
-      delete args[0].uri;
-      delete args[0].url;
-      path = args[0].path;
-      path = joinIfArray(path);
-      args[0].url = path ?
-        urlPathJoin(this.url, path) :
-        this.url;
+      pathArr = args[0].path;
+      pathArr = Array.isArray(pathArr) ? pathArr : [pathArr];
     }
-    else if (typeof args[0] === 'function') {
-      args.unshift(this.url);
-    }
-
-    return request[method].apply(request, requestArgs);
-  };
-});
-
-function joinIfArray (path) {
-  return Array.isArray(path) ?
-    p.join.apply(p, path):
-    path;
-}
-
-function leftArgStrings (inv) {
-  var nonStringHit = false;
-  return function (v) {
-    if (!nonStringHit && typeof v === 'string') {
-      return true;
+    var urlPath, cb;
+    pathArr = pathArr.map(toString);
+    urlPath = path.join.apply(path, pathArr);
+    opts = args.shift() || defaultOpts;
+    if (typeof opts === 'function') {
+      cb = opts;
+      opts = defaultOpts;
     }
     else {
-      nonStringHit = true;
-      return false;
+      cb = args.shift() || undefined;
     }
+    var url = urlPathJoin(this.url, urlPath);
+    console.log(method, url, opts);
+    delete opts.url;
+    delete opts.uri;
+    return this.request[method].call(this.request, url, opts, cb);
   };
-}
 
-function notString (v) {
-  return typeof v !== 'string';
+});
+
+
+function toString (v) {
+  if (v === null) {
+    return 'null';
+  }
+  else if (v === undefined) {
+    return 'undefined';
+  }
+  else {
+    return v.toString();
+  }
 }
