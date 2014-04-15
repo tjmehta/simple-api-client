@@ -63,7 +63,6 @@ require('methods').forEach(function (method) {
       cb = args.shift() || undefined;
     }
     var url = urlPathJoin(this.url, urlPath);
-    console.log(method, url, opts);
     delete opts.url;
     delete opts.uri;
     return this.request[method].call(this.request, url, opts, cb);
