@@ -1,33 +1,37 @@
 var path = require('path');
+var url = require('url');
+var exists = require('exists');
 var noop = function () {};
 var defaultOpts = {
   json: true
 };
-
-var urlPathJoin = function (/* urlParts */) {
-  var urlParts = Array.prototype.slice.call(arguments);
-
-  return urlParts.join('/').replace(/([^:])([\/]{2,})/g, '$1/');
-};
-
 var methodAliases = {
   'delete': 'del'
 };
 
 module.exports = ApiClient;
 
-function ApiClient(url) {
-  if (!(this instanceof ApiClient)) return new ApiClient(url);
-  if (!url) {
-    throw new Error('url is required');
+function ApiClient(host, opts) {
+  if (!(this instanceof ApiClient)) return new ApiClient(host);
+  if (!exists(host)) {
+    throw new Error('host is required');
   }
-  this.url = url;
+  if (!~host.indexOf('://')) { // accept host without protocol
+    var split = host.split(':');
+    host = url.resolve('http://', split.shift()).replace('///', '//');
+    split.unshift(host);
+    host = split.join(':');
+  }
+  this.host = host;
+  if (opts) {
+    this.request = this.request.defaults(opts);
+  }
 }
 
 ApiClient.prototype.request = require('request');
 
 require('methods').forEach(function (method) {
-  if (methodAliases[method]) {
+  if (method in methodAliases) {
     method = methodAliases[method];
   }
   ApiClient.prototype[method] = function () {
@@ -35,7 +39,7 @@ require('methods').forEach(function (method) {
     // (...strings, [opts,] cb);
     // ([opts,] cb);
     var args = Array.prototype.slice.call(arguments);
-    var pathArr, opts;
+    var pathArr;
     if (Array.isArray(args[0])) {
       // (array, ...)
       pathArr = args.shift();
@@ -47,27 +51,32 @@ require('methods').forEach(function (method) {
         pathArr.push(args.shift());
       }
     }
-    else if (typeof args[0] === 'object') {
-      pathArr = args[0].path;
-      pathArr = Array.isArray(pathArr) ? pathArr : [pathArr];
+
+    var urlPath;
+    if (pathArr) {
+      pathArr = pathArr.map(toString);
+      urlPath = path.join.apply(path, pathArr);
     }
-    var urlPath, cb;
-    pathArr = pathArr.map(toString);
-    urlPath = path.join.apply(path, pathArr);
-    opts = args.shift() || defaultOpts;
-    if (typeof opts === 'function') {
-      cb = opts;
-      opts = defaultOpts;
+
+    var opts, cb;
+    if (typeof args[0] === 'object') {
+      opts = args.shift();
+      urlPath = urlPath || opts.path;
     }
-    else {
-      cb = args.shift() || undefined;
+    if (typeof args[0] === 'function') {
+      cb = args.shift();
     }
-    var url = urlPathJoin(this.url, urlPath);
+
+    opts = opts || {};
+    Object.keys(defaultOpts).forEach(function (key) {
+      opts[key] = opts[key] || defaultOpts[key];
+    });
+    var reqUrl = url.resolve(this.host, urlPath);
     delete opts.url;
     delete opts.uri;
-    return this.request[method].call(this.request, url, opts, cb);
+    delete opts.path;
+    return this.request[method].call(this.request, reqUrl, opts, cb);
   };
-
 });
 
 

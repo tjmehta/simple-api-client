@@ -4,7 +4,8 @@
   "description": "quickly create a simple and extendable api-client",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "lab -c",
+    "test-watch": "nodemon --exec lab -c test"
   },
   "repository": {
     "type": "git",
@@ -32,11 +33,15 @@
   },
   "homepage": "https://github.com/tjmehta/simple-api-client",
   "devDependencies": {
-    "should": "~3.2.0",
-    "mocha": "~1.18.2"
+    "lab": "~3.1.1",
+    "express": "~4.1.1",
+    "nodemon": "~1.0.17",
+    "body-parser": "~1.0.2"
   },
   "dependencies": {
     "methods": "~0.1.0",
-    "request": "~2.34.0"
+    "request": "~2.34.0",
+    "boom": "~2.4.1",
+    "exists": "~1.0.0"
   }
 }
