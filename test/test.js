@@ -9,6 +9,15 @@ var after = Lab.after;
 var Api = require('../index');
 var server = require('./fixtures/api');
 
+describe('require', function() {
+  it('should require a factory if passed argument', function (done) {
+    var api = require('../index')('http://google.com');
+    expect(api).to.be.an.instanceOf(Api);
+    expect(api.host).to.equal('http://google.com');
+    done();
+  });
+});
+
 describe('constructor arguments', function () {
   describe('host', function () {
     it('should require a host', function (done) {
@@ -63,6 +72,45 @@ describe('requests', function () {
     server.stop(done);
   });
 
+  it('should make request to host if no path specified', function (done) {
+    var api = new Api(server.host);
+    var qs = { foo: 'bar' };
+    api.get(function (err, res, body) {
+      if (err) {
+        done(err);
+      }
+      else {
+        expect(body).to.eql('root'); // root responds root
+        done();
+      }
+    });
+  });
+  it('should make request to path specified in opts', function (done) {
+    var api = new Api(server.host);
+    var qs = { foo: 'bar' };
+    api.get({ path: '/qs', qs: qs }, function (err, res, body) {
+      if (err) {
+        done(err);
+      }
+      else {
+        expect(body).to.eql(qs);
+        done();
+      }
+    });
+  });
+  it('should return a stream if no cb is specified', function (done) {
+    var api = new Api(server.host);
+    var qs = { foo: 'bar' };
+    var stream = api.get('/');
+    var data = '';
+    stream.on('data', function (packet) {
+      data += packet;
+    });
+    stream.on('end', function (packet) {
+      expect(data).to.equal('root'); // root responds root
+      done();
+    });
+  });
   it('should send query params (request opt qs)', function (done) {
     var api = new Api(server.host);
     var qs = { foo: 'bar' };
@@ -121,14 +169,15 @@ describe('requests', function () {
   });
   it('should accept a url as multiple args and toString non-strings', function (done) {
     var api = new Api(server.host);
-    api.get('/params', 1, 2, function (err, res, body) {
+    api.get('/params', 1, null, undefined, function (err, res, body) {
       if (err) {
         done(err);
       }
       else {
         expect(body).to.eql({
           one: '1',
-          two: '2'
+          two: 'null',
+          three: 'undefined'
         });
         done();
       }

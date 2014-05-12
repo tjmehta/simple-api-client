@@ -1,6 +1,11 @@
 var path = require('path');
 var url = require('url');
-var exists = require('exists');
+var exists = require('101/exists');
+var isString = require('101/is-string');
+var isObject = require('101/is-object');
+var isFunction = require('101/is-function');
+var passAny = require('101/pass-any');
+var isObjectOrFunction = passAny(isObject, isFunction);
 var noop = function () {};
 var defaultOpts = {
   json: true
@@ -44,10 +49,10 @@ require('methods').forEach(function (method) {
       // (array, ...)
       pathArr = args.shift();
     }
-    else if (typeof args[0] === 'string') {
+    else if (!isObjectOrFunction(args[0])) {
       // (...strings, ...)
       pathArr = [];
-      while(typeof args[0] === 'string') {
+      while((0 in args) && !isObjectOrFunction(args[0])) {
         pathArr.push(args.shift());
       }
     }
@@ -59,11 +64,11 @@ require('methods').forEach(function (method) {
     }
 
     var opts, cb;
-    if (typeof args[0] === 'object') {
+    if (isObject(args[0])) {
       opts = args.shift();
       urlPath = urlPath || opts.path;
     }
-    if (typeof args[0] === 'function') {
+    if (isFunction(args[0])) {
       cb = args.shift();
     }
 
@@ -71,14 +76,14 @@ require('methods').forEach(function (method) {
     Object.keys(defaultOpts).forEach(function (key) {
       opts[key] = opts[key] || defaultOpts[key];
     });
-    var reqUrl = url.resolve(this.host, urlPath);
+    var reqUrl = exists(urlPath) ? url.resolve(this.host, urlPath) : this.host;
     delete opts.url;
     delete opts.uri;
     delete opts.path;
-    return this.request[method].call(this.request, reqUrl, opts, cb);
+    var reqArgs = [reqUrl, opts, cb].filter(exists);
+    return this.request[method].apply(this.request, reqArgs);
   };
 });
-
 
 function toString (v) {
   if (v === null) {
