@@ -85,6 +85,24 @@ require('methods').forEach(function (method) {
   };
 });
 
+function handleErrors (statusCodes, cb) {
+  return function (err, res, body) {
+    if (err) {
+      err.isUnexpected = true;
+      cb(err);
+    }
+    else if (res.statusCode in statusCodes) {
+      var message = statusCodes[res.statusCode];
+      message
+      err = new Boom.create(res.statusCode, message, body);
+      cb(err);
+    }
+    else {
+
+    }
+  };
+}
+
 function toString (v) {
   if (v === null) {
     return 'null';
