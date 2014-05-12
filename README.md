@@ -1,4 +1,4 @@
-simple-api-client
+simple-api-client [![Build Status](https://travis-ci.org/tjmehta/simple-api-client.svg?branch=master)](https://travis-ci.org/tjmehta/simple-api-client)
 =================
 
 create a quick simple extendable api client
