@@ -4,7 +4,8 @@
   "description": "quickly create a simple and extendable api-client",
   "main": "index.js",
   "scripts": {
-    "test": "lab -c",
+    "test": "lab",
+    "test-browser": "lab -e browser",
     "test-watch": "nodemon --exec lab -c test"
   },
   "repository": {
@@ -33,14 +34,24 @@
   },
   "homepage": "https://github.com/tjmehta/simple-api-client",
   "devDependencies": {
-    "lab": "~3.1.1",
+    "body-parser": "~1.0.2",
+    "browserify": "^4.1.8",
     "express": "~4.1.1",
+    "lab": "~3.1.1",
     "nodemon": "~1.0.17",
-    "body-parser": "~1.0.2"
+    "phantomjs": "^1.9.7-8",
+    "testling": "^1.6.1"
   },
   "dependencies": {
     "101": "^0.3.0",
     "methods": "~0.1.0",
-    "request": "~2.34.0"
+    "request": "~2.34.0",
+    "xhr": "^1.7.0"
+  },
+  "testling": {
+    "files": "test/test.js",
+    "browsers": [
+      "phantomjs"
+    ]
   }
 }

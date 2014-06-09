@@ -5,6 +5,7 @@ var isString = require('101/is-string');
 var isObject = require('101/is-object');
 var isFunction = require('101/is-function');
 var passAny = require('101/pass-any');
+var qs = require('querystring');
 var isObjectOrFunction = passAny(isObject, isFunction);
 var noop = function () {};
 var defaultOpts = {
@@ -13,6 +14,7 @@ var defaultOpts = {
 var methodAliases = {
   'delete': 'del'
 };
+var isBrowser = typeof window !== 'undefined' || process.env.NODE_ENV === 'browser';
 
 module.exports = ApiClient;
 
@@ -33,7 +35,12 @@ function ApiClient(host, opts) {
   }
 }
 
-ApiClient.prototype.request = require('request');
+if (isBrowser) {
+  ApiClient.prototype.xhr = require('xhr');
+}
+else {
+  ApiClient.prototype.request = require('request');
+}
 
 require('methods').forEach(function (method) {
   if (method in methodAliases) {
@@ -80,8 +87,20 @@ require('methods').forEach(function (method) {
     delete opts.url;
     delete opts.uri;
     delete opts.path;
-    var reqArgs = [reqUrl, opts, cb].filter(exists);
-    return this.request[method].apply(this.request, reqArgs);
+    var reqArgs;
+    if (this.xhr) {
+      opts.method = method;
+      opts.url = reqUrl;
+      if (opts.qs && Object.keys(opts.qs).length) {
+        opts.url += '?'+qs.stringify(opts.qs);
+      }
+      reqArgs = [opts, cb].filter(exists);
+      return this.xhr.apply(this.request, reqArgs);
+    }
+    else { // this.request
+      reqArgs = [reqUrl, opts, cb].filter(exists);
+      return this.request[method].apply(this.request, reqArgs);
+    }
   };
 });
 
