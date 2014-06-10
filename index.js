@@ -97,7 +97,7 @@ require('methods').forEach(function (method) {
         opts.url += '?'+qs.stringify(opts.qs);
       }
       reqArgs = [opts, cb].filter(exists);
-      return this.xhr.apply(this.request, reqArgs);
+      return this.xhr.apply(this.xhr, reqArgs);
     }
     else { // this.request
       reqArgs = [reqUrl, opts, cb].filter(exists);
