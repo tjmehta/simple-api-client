@@ -44,9 +44,11 @@ else {
 
 require('methods').forEach(function (method) {
   if (method in methodAliases) {
+    ApiClient.prototype[method] = methodAction;
     method = methodAliases[method];
   }
-  ApiClient.prototype[method] = function () {
+  ApiClient.prototype[method] = methodAction;
+  function methodAction () {
     // (array, [opts,] cb);
     // (...strings, [opts,] cb);
     // ([opts,] cb);
@@ -101,7 +103,7 @@ require('methods').forEach(function (method) {
       reqArgs = [reqUrl, opts, cb].filter(exists);
       return this.request[method].apply(this.request, reqArgs);
     }
-  };
+  }
 });
 
 function toString (v) {
