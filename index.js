@@ -30,7 +30,7 @@ function ApiClient(host, opts) {
     host = split.join(':');
   }
   this.host = host;
-  if (opts) {
+  if (opts && this.request) {
     this.request = this.request.defaults(opts);
   }
 }
@@ -96,7 +96,20 @@ require('methods').forEach(function (method) {
       if (opts.qs && Object.keys(opts.qs).length) {
         opts.url += '?'+qs.stringify(opts.qs);
       }
-      reqArgs = [opts, cb].filter(exists);
+      if (opts.json) {
+        opts.headers = opts.headers || {};
+        opts.headers['Content-Type'] = 'application/json';
+        reqArgs = [opts, cb ? jsonParseBefore(cb) : null].filter(exists);
+        if (opts.json === true) {
+          delete opts.json;
+        }
+      }
+      else {
+        if (opts.json === false) {
+          delete opts.json;
+        }
+        reqArgs = [opts, cb].filter(exists);
+      }
       return this.xhr.apply(this.xhr, reqArgs);
     }
     else { // this.request
@@ -116,4 +129,22 @@ function toString (v) {
   else {
     return v.toString();
   }
+}
+
+function jsonParseBefore (cb) {
+  return function (err, res, body) {
+    if (err) { cb(err); }
+
+    try {
+      if (res.body) {
+        res.body = JSON.parse(res.body);
+      }
+    }
+    catch (e) {
+      // ignore
+    }
+    finally {
+      cb(err, res, res.body);
+    }
+  };
 }
