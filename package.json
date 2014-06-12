@@ -4,7 +4,8 @@
   "description": "quickly create a simple and extendable api-client",
   "main": "index.js",
   "scripts": {
-    "test": "lab",
+    "start-fixture": "node ./test/fixtures/api.js & sleep 1;",
+    "test": "mocha test/test.js;",
     "test-browser": "lab -e browser",
     "test-watch": "nodemon --exec lab -c test"
   },
@@ -40,7 +41,9 @@
     "lab": "~3.1.1",
     "nodemon": "~1.0.17",
     "phantomjs": "^1.9.7-8",
-    "testling": "^1.6.1"
+    "testling": "^1.6.1",
+    "mocha": "~1.20.1",
+    "chai": "~1.9.1"
   },
   "dependencies": {
     "101": "^0.3.0",
@@ -52,6 +55,7 @@
     "files": "test/test.js",
     "browsers": [
       "phantomjs"
-    ]
+    ],
+    "harness" : "mocha"
   }
 }

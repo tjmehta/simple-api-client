@@ -23,7 +23,7 @@ function respondParams (req, res) {
 }
 
 var server = module.exports = {};
-server.port = 3001;
+server.port = 3030;
 server.host = 'localhost:'+server.port;
 server.start = function (cb) {
   this.server = app.listen(this.port, cb);
@@ -33,3 +33,9 @@ server.stop = function (cb) {
   this.server.close(cb);
   return this;
 };
+
+server.start(function () {
+  setTimeout(function () {
+    // process.exit();
+  }, 2000);
+});
