@@ -14,6 +14,17 @@ describe('tests', function () {
     } :
     undefined;
 
+  if (!isBrowser) {
+    var apistr = './fixtures/api';
+    var api = require(apistr); // var prevents browser bundling
+    before(function (done) {
+      api.start(done);
+    });
+    after(function (done) {
+      api.stop(done);
+    });
+  }
+
   describe('require', function () {
     it('should require a factory if passed argument', function (done) {
       var api = require('../index')('http://google.com');

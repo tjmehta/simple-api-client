@@ -14,7 +14,6 @@ app.get('/', function (req, res) {
 });
 
 app.get('/qs', function (req, res) {
-  console.log('req.query', req.query);
   res.json(req.query);
 });
 
@@ -41,9 +40,3 @@ server.stop = function (cb) {
   this.server.close(cb);
   return this;
 };
-
-server.start(function () {
-  setTimeout(function () {
-    // process.exit();
-  }, 2000);
-});

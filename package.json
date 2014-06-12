@@ -61,6 +61,7 @@
     "harness": "mocha",
     "files": [
       "test/test.js"
-    ]
+    ],
+    "server" : "node test/fixtures/api-server.js 3030"
   }
 }

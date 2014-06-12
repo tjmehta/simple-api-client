@@ -33,6 +33,8 @@ facebook.get('photos', function (err, res, body) {
 
 ## Uses [request](https://github.com/mikael/request) under the hood
 
+Works in the browser too, using [browser-request](https://github.com/iriscouch/browser-request) under the hood
+
 ```js
 var facebook = require('simple-api-client')('http://graph.facebook.com'); // you can require the Class or instance directly.
 
