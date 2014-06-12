@@ -6,6 +6,7 @@ var isObject = require('101/is-object');
 var isFunction = require('101/is-function');
 var passAny = require('101/pass-any');
 var qs = require('querystring');
+var defaults = require('defaults');
 var isObjectOrFunction = passAny(isObject, isFunction);
 var noop = function () {};
 var defaultOpts = {
@@ -30,16 +31,17 @@ function ApiClient(host, opts) {
     host = split.join(':');
   }
   this.host = host;
-  if (opts && this.request) {
-    this.request = this.request.defaults(opts);
-  }
+  this.request = this.request.defaults(
+    defaults(opts || {}, defaultOpts)
+  );
 }
 
 if (isBrowser) {
-  ApiClient.prototype.xhr = require('xhr');
+  ApiClient.prototype.request = require('browser-request');
 }
 else {
-  ApiClient.prototype.request = require('request');
+  var reqstr = 'request'; // var prevents bundling with browser version
+  ApiClient.prototype.request = require(reqstr);
 }
 
 require('methods').forEach(function (method) {
@@ -82,40 +84,14 @@ require('methods').forEach(function (method) {
     }
 
     opts = opts || {};
-    Object.keys(defaultOpts).forEach(function (key) {
-      opts[key] = opts[key] || defaultOpts[key];
-    });
     var reqUrl = exists(urlPath) ? url.resolve(this.host, urlPath) : this.host;
     delete opts.url;
     delete opts.uri;
     delete opts.path;
     var reqArgs;
-    if (this.xhr) {
-      opts.method = method;
-      opts.url = reqUrl;
-      if (opts.qs && Object.keys(opts.qs).length) {
-        opts.url += '?'+qs.stringify(opts.qs);
-      }
-      if (opts.json) {
-        opts.headers = opts.headers || {};
-        opts.headers['Content-Type'] = 'application/json';
-        reqArgs = [opts, cb ? jsonParseBefore(cb) : null].filter(exists);
-        if (opts.json === true) {
-          delete opts.json;
-        }
-      }
-      else {
-        if (opts.json === false) {
-          delete opts.json;
-        }
-        reqArgs = [opts, cb].filter(exists);
-      }
-      return this.xhr.apply(this.xhr, reqArgs);
-    }
-    else { // this.request
-      reqArgs = [reqUrl, opts, cb].filter(exists);
-      return this.request[method].apply(this.request, reqArgs);
-    }
+    opts.url = reqUrl;
+    reqArgs = [opts, cb].filter(exists);
+    return this.request[method].apply(this.request, reqArgs);
   }
 });
 

@@ -35,27 +35,32 @@
   },
   "homepage": "https://github.com/tjmehta/simple-api-client",
   "devDependencies": {
-    "body-parser": "~1.0.2",
+    "body-parser": "^1.3.1",
     "browserify": "^4.1.8",
+    "chai": "~1.9.1",
+    "cors": "^2.3.1",
     "express": "~4.1.1",
     "lab": "~3.1.1",
+    "mocha": "^1.20.1",
     "nodemon": "~1.0.17",
     "phantomjs": "^1.9.7-8",
     "testling": "^1.6.1",
-    "mocha": "~1.20.1",
-    "chai": "~1.9.1"
+    "xtend": "^3.0.0"
   },
   "dependencies": {
     "101": "^0.3.0",
+    "browser-request": "iriscouch/browser-request#d99a386fc9f8109555cd92b7f3287cc5d816aa24",
+    "defaults": "^1.0.0",
     "methods": "~0.1.0",
-    "request": "~2.34.0",
-    "xhr": "^1.7.0"
+    "request": "~2.34.0"
   },
   "testling": {
-    "files": "test/test.js",
     "browsers": [
-      "phantomjs"
+      "chrome"
     ],
-    "harness" : "mocha"
+    "harness": "mocha",
+    "files": [
+      "test/test.js"
+    ]
   }
 }

@@ -2,11 +2,19 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var app = express();
 
+var cors = require('cors');
+app.use(cors({
+  origin: function (origin, cb) {
+    cb(null, true); // allow all
+  }
+}));
+
 app.get('/', function (req, res) {
-  res.send('root');
+  res.json('root');
 });
 
 app.get('/qs', function (req, res) {
+  console.log('req.query', req.query);
   res.json(req.query);
 });
 
