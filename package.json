@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "101": "^0.3.0",
-    "browser-request": "iriscouch/browser-request#d99a386fc9f8109555cd92b7f3287cc5d816aa24",
+    "browser-request": "Runnable/browser-request#b1502baf00d446c85963c2f8e66f6f802fa4d45f",
     "defaults": "^1.0.0",
     "methods": "~0.1.0",
     "request": "~2.34.0"
