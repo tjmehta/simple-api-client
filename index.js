@@ -95,7 +95,6 @@ require('methods').forEach(function (method) {
     if (~['post', 'patch', 'put', 'delete'].indexOf(method.toLowerCase())) {
       opts.json = opts.json || {};
     }
-    console.log('METHDO', method, opts);
     return this.request[method].apply(this.request, reqArgs);
   }
 });
