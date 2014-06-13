@@ -1,6 +1,6 @@
 {
   "name": "simple-api-client",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "quickly create a simple and extendable api-client",
   "main": "index.js",
   "scripts": {
@@ -60,6 +60,6 @@
     "files": [
       "test/test.js"
     ],
-    "server" : "node test/fixtures/api-server.js 3030"
+    "server": "node test/fixtures/api-server.js 3030"
   }
 }
