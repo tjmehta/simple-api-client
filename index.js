@@ -91,6 +91,11 @@ require('methods').forEach(function (method) {
     var reqArgs;
     opts.url = reqUrl;
     reqArgs = [opts, cb].filter(exists);
+    // browser request patch default json to empty obj for methods that have body but no json param
+    if (~['post', 'patch', 'put', 'delete'].indexOf(method.toLowerCase())) {
+      opts.json = opts.json || {};
+    }
+    console.log('METHDO', method, opts);
     return this.request[method].apply(this.request, reqArgs);
   }
 });
