@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "101": "^0.3.0",
-    "browser-request": "Runnable/browser-request#d54d9b03eb0f6b60e329b309ab2a9087fa135982",
+    "browser-request": "Runnable/browser-request#09e437d4361ea3f2f9c2718f60d832965bfcaf48",
     "defaults": "^1.0.0",
     "methods": "~0.1.0",
     "request": "~2.34.0"
