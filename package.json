@@ -1,6 +1,6 @@
 {
   "name": "simple-api-client",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "quickly create a simple and extendable api-client",
   "main": "index.js",
   "scripts": {
