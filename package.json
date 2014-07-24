@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "101": "^0.3.0",
-    "browser-request": "Runnable/browser-request#v0.3.4",
+    "browser-request": "Runnable/browser-request#v0.3.5",
     "defaults": "^1.0.0",
     "methods": "~0.1.0",
     "request": "~2.34.0"
