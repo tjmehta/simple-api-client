@@ -10,7 +10,8 @@ var defaults = require('defaults');
 var isObjectOrFunction = passAny(isObject, isFunction);
 var noop = function () {};
 var defaultOpts = {
-  json: true
+  json: true,
+  pool: false
 };
 var methodAliases = {
   'delete': 'del'
