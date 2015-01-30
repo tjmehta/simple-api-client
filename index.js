@@ -25,7 +25,7 @@ function ApiClient(host, opts) {
   if (!exists(host)) {
     throw new Error('host is required');
   }
-  if (!~host.indexOf('://')) { // accept host without protocol
+  if (!~host.indexOf('//')) { // accept host without protocol
     var split = host.split(':');
     host = url.resolve('http://', split.shift()).replace('///', '//');
     split.unshift(host);
