@@ -4,10 +4,9 @@
   "description": "quickly create a simple and extendable api-client",
   "main": "index.js",
   "scripts": {
-    "start-fixture": "node ./test/fixtures/api.js & sleep 1;",
-    "test": "mocha test/test.js;",
-    "test-browser": "lab -e browser",
-    "test-watch": "nodemon --exec lab -c test"
+    "prepublish": "npm run build",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "test": "jest --coverage"
   },
   "repository": {
     "type": "git",
@@ -16,17 +15,14 @@
   "keywords": [
     "api",
     "client",
-    "api",
-    "client",
     "easy",
     "simple",
     "quick",
     "base",
-    "api",
-    "client",
-    "base",
     "class",
-    "base"
+    "base",
+    "isomorphic",
+    "browser"
   ],
   "author": "Tejesh Mehta",
   "license": "MIT",
@@ -35,30 +31,15 @@
   },
   "homepage": "https://github.com/tjmehta/simple-api-client",
   "devDependencies": {
-    "body-parser": "^1.3.1",
-    "browserify": "^4.1.8",
-    "chai": "~1.9.1",
-    "cors": "^2.3.1",
-    "express": "~4.1.1",
-    "mocha": "^1.20.1",
-    "nodemon": "~1.0.17",
-    "testling": "^1.6.1",
-    "xtend": "^3.0.0"
+    "@babel/preset-env": "^7.10.2",
+    "@babel/preset-typescript": "^7.10.1",
+    "@types/jest": "^25.2.3",
+    "babel-core": "^6.26.3",
+    "babel-jest": "^26.0.1",
+    "jest": "^26.0.1",
+    "prettier": "^2.0.5",
+    "typescript": "^3.9.3",
+    "cross-fetch": "^3.0.5"
   },
-  "dependencies": {
-    "101": "^1.4.0",
-    "browser-request": "Runnable/browser-request#v0.3.5",
-    "methods": "~1.1.1",
-    "request": "~2.34.0"
-  },
-  "testling": {
-    "browsers": [
-      "chrome"
-    ],
-    "harness": "mocha",
-    "files": [
-      "test/test.js"
-    ],
-    "server": "node test/fixtures/api-server.js 3030"
-  }
+  "dependencies": {}
 }

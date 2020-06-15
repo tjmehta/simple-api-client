@@ -1,90 +1,112 @@
-simple-api-client [![Build Status](https://travis-ci.org/tjmehta/simple-api-client.svg?branch=master)](https://travis-ci.org/tjmehta/simple-api-client)
-=================
+# simple-api-client [![Build Status](https://travis-ci.org/tjmehta/simple-api-client.svg?branch=master)](https://travis-ci.org/tjmehta/simple-api-client)
 
-create a quick simple extendable api client
+create a quick simple extendable api client, powered by fetch, and that has syntactic sugar for interacting with json APIs
 
+# Installation
 
-## Usage
-
-### Initialize
-
-Require a Class
-
-```js
-var ApiClient = require('simple-api-client');
-var facebook = new ApiClient('http://graph.facebook.com');
+```sh
+npm i --save simple-api-client
 ```
 
-Or just Require an Instance
+# Usage
+
+#### Supports both ESM and CommonJS
 
 ```js
-var facebook = require('simple-api-client')('http://graph.facebook.com');
+// esm
+import AbstractStartable from 'abstract-startable`
+// commonjs
+const AbstractStartable = require('abstract-startable')
 ```
 
-### Http methods (post, get, put, patch, post, del, ...) (uses [methods](https://github.com/visionmedia/node-methods));
+#### Specify fetch
+
+SimpleApiClient will use the global fetch by default, but if you're using ponyfills or want to specify a custom fetch use `setFetch`
 
 ```js
-var facebook = require('simple-api-client')('http://graph.facebook.com'); // you can require the Class or instance directly.
+import { setFetch } from 'simple-api-client'
 
-facebook.get('photos', function (err, res, body) {
+function customFetch(url: string, init: {}) {
   // ...
-});
-```
-
-## Uses [request](https://github.com/mikael/request) under the hood
-
-Works in the browser too, using [browser-request](https://github.com/iriscouch/browser-request) under the hood
-
-```js
-var facebook = require('simple-api-client')('http://graph.facebook.com'); // you can require the Class or instance directly.
-
-var opts = {
-  /* request options! */
-  json: true,
-
-  /* adds option for path */
-  path: 'photos'
 }
 
-facebook.get(opts, function (err, res, body) {
-  // ...
-});
-
-// or
-
-facebook.get('photos', opts, function (err, res, body) {
-  // ...
-});
-
-// accepts paths as arrays or multiple strings
-
-facebook.get('photos', photoId, function (err, res, body) {
-  // ...
-});
-
-facebook.get(['photos', photoId], function (err, res, body) {
-  // ...
-});
-
+setFetch(customFetch)
 ```
 
+#### Create an instance and make a request
 
-
-## Great Base Class for Creating an ApiClient
+Create a SimpleApiClient and make a get request
 
 ```js
-var util = require('util');
-var ApiClient = require('simple-api-client');
+import ApiClient from 'simple-api-client'
 
-var Facebook = function (/* ... */) {
-  /// ...
+const facebook = new ApiClient('http://graph.facebook.com')
+
+// SimpleApiClient has convenience methods for get, post, put, head, delete, options, & patch.
+const res = await facebook.get('photos')
+const json = await res.json()
+
+// You can make request with additional methods by using fetch and specifying any method
+const res = await facebook.fetch('photos', { method: 'subscribe' })
+const json = await res.json()
+```
+
+#### Specify default options used for all requests
+
+Fetch "init" options that are passed to the constructor are used for all requests
+
+```js
+import ApiClient from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com', {
+  headers: { authorization: 'token foobar' },
+})
+
+const res = await client.get('photos', {
+  headers: { 'x-custom-header': 'custom value' },
+})
+// get request sent with headers
+// 'authorization': 'token foobar'
+// 'x-custom-header': 'custom value'
+```
+
+#### Easily send json data to an api
+
+SimpleApiClient's fetch "init" options are extended to accept a 'json' property
+
+```js
+import ApiClient from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com', {
+  headers: { authorization: 'token foobar' },
+})
+
+const res = await client.post('photos', {
+  json: {
+    foo: bar,
+  },
+})
+// simple api client will stringify the json for you
+```
+
+#### Extend SimpleApiClient to make a custom api client.
+
+```js
+import ApiClient from 'simple-api-client'
+
+class Facebook extends ApiClient {
+  constructor() {
+    super('http://graph.facebook.com')
+  }
+  async getPhotos() {
+    return this.get('photos')
+  }
 }
 
-util.inherits(Facebook, ApiClient);
-
-Facebook.prototype.getPhotos = function (cb) {
-  this.get('photos', cb);
-}
+// SimpleApiClient has convenience methods for get, post, put, head, delete, options, & patch.
+const facebook = new Facebook()
+const res = await facebook.getPhotos()
+const json = await res.json()
 ```
 
 ## License
