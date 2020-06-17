@@ -1,18 +1,20 @@
+import { QueryParamsType } from './queryToString';
 export declare function setFetch(_fetch: typeof fetch): void;
-interface RequestInitWithBody<T = {}> extends RequestInit {
-    json?: T;
+interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
+    json?: JsonType;
+    query?: QueryType;
 }
-export default class SimpleApiClient<DefaultJsonType = {}> {
+export default class SimpleApiClient<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> {
     protected host: string;
-    protected defaultInit?: RequestInitWithBody<DefaultJsonType>;
-    constructor(host: string, defaultInit?: RequestInitWithBody<DefaultJsonType>);
-    fetch<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    get<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    post<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    put<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    head<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    delete<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    options<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
-    patch<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>): Promise<Response>;
+    protected defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>;
+    constructor(host: string, defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>);
+    fetch<QueryType extends QueryParamsType, JsonType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    get<QueryType extends QueryParamsType = {}, JsonType = undefined>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    head<QueryType extends QueryParamsType = {}, JsonType = undefined>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    options<QueryType extends QueryParamsType = {}, JsonType = undefined>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    post<JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    put<JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    delete<JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
+    patch<JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
 }
 export {};
