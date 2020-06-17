@@ -1,4 +1,9 @@
 # v1.0.1
+
+- feature: add support for query opt that supports json query params
+
+# v1.0.1
+
 - fix: package.json main and module properties
 
 # v1.0.0

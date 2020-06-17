@@ -16,6 +16,9 @@ describe('SimpleApiClient', () => {
       } else if (req.url === '/headers') {
         res.statusCode = 200
         res.end(JSON.stringify(req.headers))
+      } else if (/^\/query/.test(req.url)) {
+        res.statusCode = 200
+        res.end(JSON.stringify(req.url))
       } else {
         res.statusCode = 200
         res.end('hello world')
@@ -99,6 +102,32 @@ describe('SimpleApiClient', () => {
         "foo": "bar",
       }
     `)
+  })
+
+  it('should send and recieve query params', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
+      query: {
+        foo: 'val',
+        bar: ['one', 'two'],
+      },
+    })
+    const res = await apiClient.get('query')
+    const body = await res.text()
+    expect(res.status).toBe(200)
+    expect(body).toMatchInlineSnapshot(`"\\"/query?foo=val&bar=one&bar=two\\""`)
+  })
+
+  it('should send and recieve query params (default init)', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
+      query: {
+        foo: 'val',
+        bar: ['one', 'two'],
+      },
+    })
+    const res = await apiClient.post('query')
+    const body = await res.text()
+    expect(res.status).toBe(200)
+    expect(body).toMatchInlineSnapshot(`"\\"/query?foo=val&bar=one&bar=two\\""`)
   })
 
   it('should send and recieve a headers (default init)', async () => {

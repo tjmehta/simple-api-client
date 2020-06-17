@@ -1,28 +1,37 @@
+import queryToString, { QueryParamsType } from './queryToString'
+
 let f = typeof fetch === 'function' ? fetch : undefined
 
 export function setFetch(_fetch: typeof fetch) {
   f = _fetch
 }
 
-interface RequestInitWithBody<T = {}> extends RequestInit {
-  json?: T
+interface ExtendedRequestInit<
+  QueryType extends QueryParamsType = {},
+  JsonType = {}
+> extends RequestInit {
+  json?: JsonType
+  query?: QueryType
 }
 
-export default class SimpleApiClient<DefaultJsonType = {}> {
+export default class SimpleApiClient<
+  DefaultQueryType extends QueryParamsType = {},
+  DefaultJsonType = {}
+> {
   protected host: string
-  protected defaultInit?: RequestInitWithBody<DefaultJsonType>
+  protected defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>
 
   constructor(
     host: string,
-    defaultInit?: RequestInitWithBody<DefaultJsonType>,
+    defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>,
   ) {
     this.host = host.replace(/\/$/, '')
     this.defaultInit = defaultInit
   }
 
-  async fetch<JsonType = {}>(
+  async fetch<QueryType extends QueryParamsType, JsonType = {}>(
     path: string,
-    init?: RequestInitWithBody<JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
   ): Promise<Response> {
     if (f == null) {
       throw new Error(
@@ -30,8 +39,8 @@ export default class SimpleApiClient<DefaultJsonType = {}> {
       )
     }
 
-    const pathNoSlash = path.replace(/^\//, '')
-    let initWithDefaults: RequestInitWithBody<{}> | undefined
+    let pathNoSlash = path.replace(/^\//, '')
+    let initWithDefaults: ExtendedRequestInit | undefined
 
     if (this.defaultInit || init) {
       initWithDefaults = { ...this.defaultInit, ...init }
@@ -43,7 +52,7 @@ export default class SimpleApiClient<DefaultJsonType = {}> {
       }
     }
 
-    if (initWithDefaults && 'json' in initWithDefaults) {
+    if (initWithDefaults && initWithDefaults.json != null) {
       try {
         initWithDefaults.body = JSON.stringify(initWithDefaults.json)
         delete initWithDefaults.json
@@ -52,43 +61,64 @@ export default class SimpleApiClient<DefaultJsonType = {}> {
       }
     }
 
+    if (initWithDefaults && initWithDefaults.query != null) {
+      try {
+        const queryString = queryToString(initWithDefaults.query)
+        if (queryString.length) {
+          pathNoSlash = `${pathNoSlash}?${queryString}`
+        }
+        delete initWithDefaults.query
+      } catch (err) {
+        throw new Error('cannot stringify json body: ' + err.message)
+      }
+    }
+
     return f(`${this.host}/${pathNoSlash}`, initWithDefaults)
   }
 
-  async get<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>) {
-    return this.fetch<JsonType>(path, { ...init, method: 'get' })
-  }
-  async post<JsonType = {}>(
+  // methods that are unlikely to have a body
+  async get<QueryType extends QueryParamsType = {}, JsonType = undefined>(
     path: string,
-    init?: RequestInitWithBody<JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
   ) {
-    return this.fetch<JsonType>(path, { ...init, method: 'post' })
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'get' })
   }
-  async put<JsonType = {}>(path: string, init?: RequestInitWithBody<JsonType>) {
-    return this.fetch<JsonType>(path, { ...init, method: 'put' })
-  }
-  async head<JsonType = {}>(
+  async head<QueryType extends QueryParamsType = {}, JsonType = undefined>(
     path: string,
-    init?: RequestInitWithBody<JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
   ) {
-    return this.fetch<JsonType>(path, { ...init, method: 'head' })
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'head' })
   }
-  async delete<JsonType = {}>(
+  async options<QueryType extends QueryParamsType = {}, JsonType = undefined>(
     path: string,
-    init?: RequestInitWithBody<JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
   ) {
-    return this.fetch<JsonType>(path, { ...init, method: 'delete' })
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'options' })
   }
-  async options<JsonType = {}>(
+
+  // methods that are likely to have a body
+  async post<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: RequestInitWithBody<JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
   ) {
-    return this.fetch<JsonType>(path, { ...init, method: 'options' })
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'post' })
   }
-  async patch<JsonType = {}>(
+  async put<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: RequestInitWithBody<JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
   ) {
-    return this.fetch<JsonType>(path, { ...init, method: 'patch' })
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'put' })
+  }
+  async delete<JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
+  ) {
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'delete' })
+  }
+  async patch<JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    init?: ExtendedRequestInit<QueryType, JsonType>,
+  ) {
+    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'patch' })
   }
 }

@@ -83,10 +83,31 @@ const client = new ApiClient('http://graph.facebook.com', {
 
 const res = await client.post('photos', {
   json: {
-    foo: bar,
+    foo: 'val',
   },
 })
 // simple api client will stringify the json for you
+```
+
+#### Easily request a url with custom query params
+
+SimpleApiClient's fetch "init" options are extended to accept a 'json' property
+
+```js
+import ApiClient from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com', {
+  headers: { authorization: 'token foobar' },
+})
+
+const res = await client.get('photos', {
+  query: {
+    foo: 'val',
+    bar: ['one', 'two'],
+  },
+})
+// simple api client will stringify the query params for you
+// the url will be: http://graph.facebook.com/photos?foo=val&bar=one&bar=two
 ```
 
 #### Extend SimpleApiClient to make a custom api client.
