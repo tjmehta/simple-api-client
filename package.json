@@ -1,6 +1,6 @@
 {
   "name": "simple-api-client",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "quickly create a simple and extendable api-client",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
