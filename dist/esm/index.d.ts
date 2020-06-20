@@ -1,6 +1,6 @@
 import { QueryParamsType } from './queryToString';
 export declare function setFetch(_fetch: typeof fetch): void;
-interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
+export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
     json?: JsonType;
     query?: QueryType;
 }
@@ -17,4 +17,3 @@ export default class SimpleApiClient<DefaultQueryType extends QueryParamsType = 
     delete<JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
     patch<JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType>): Promise<Response>;
 }
-export {};

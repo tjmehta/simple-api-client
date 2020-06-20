@@ -6,7 +6,7 @@ export function setFetch(_fetch: typeof fetch) {
   f = _fetch
 }
 
-interface ExtendedRequestInit<
+export interface ExtendedRequestInit<
   QueryType extends QueryParamsType = {},
   JsonType = {}
 > extends RequestInit {

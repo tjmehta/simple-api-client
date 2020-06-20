@@ -1,4 +1,8 @@
-# v1.0.1
+# v1.1.1
+
+- fix: export ExtendedRequestInit
+
+# v1.1.0
 
 - feature: add support for query opt that supports json query params
 
