@@ -41,6 +41,7 @@ class SimpleApiClient {
             if (initWithDefaults && initWithDefaults.json != null) {
                 try {
                     initWithDefaults.body = JSON.stringify(initWithDefaults.json);
+                    initWithDefaults.headers = Object.assign({ accept: 'application/json', 'content-type': 'application/json' }, initWithDefaults.headers);
                     delete initWithDefaults.json;
                 }
                 catch (err) {
@@ -56,7 +57,7 @@ class SimpleApiClient {
                     delete initWithDefaults.query;
                 }
                 catch (err) {
-                    throw new Error('cannot stringify json body: ' + err.message);
+                    throw new Error('cannot stringify json query: ' + err.message);
                 }
             }
             return f(`${this.host}/${pathNoSlash}`, initWithDefaults);

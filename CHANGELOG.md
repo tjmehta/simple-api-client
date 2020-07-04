@@ -1,3 +1,8 @@
+# v1.2.0
+
+- feature: set accept and content-type headers to application/json when using json option
+- fix: correct stringify query error message
+
 # v1.1.1
 
 - fix: export ExtendedRequestInit

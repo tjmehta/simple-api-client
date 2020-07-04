@@ -87,6 +87,7 @@ const res = await client.post('photos', {
   },
 })
 // simple api client will stringify the json for you
+// request headers "accept" and "content-type" will be defaulted to "application/json"
 ```
 
 #### Easily request a url with custom query params
