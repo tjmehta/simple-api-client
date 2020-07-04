@@ -104,6 +104,63 @@ describe('SimpleApiClient', () => {
     `)
   })
 
+  it('should send and recieve a json (default init as function)', async () => {
+    const url = 'body'
+    const init = {}
+    const apiClient = new SimpleApiClient(
+      `http://localhost:${PORT}`,
+      (url, _init) => {
+        expect(url).toBe('body')
+        expect(_init).toEqual({
+          ...init,
+          method: 'post',
+        })
+        return {
+          json: {
+            foo: 'bar',
+          },
+        }
+      },
+    )
+    const res = await apiClient.post('body')
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body).toMatchInlineSnapshot(`
+      Object {
+        "foo": "bar",
+      }
+    `)
+  })
+
+  it('should send and recieve a json (default init as async function)', async () => {
+    const url = 'body'
+    const init = {}
+    const apiClient = new SimpleApiClient(
+      `http://localhost:${PORT}`,
+      async (url, _init) => {
+        expect(url).toBe('body')
+        expect(_init).toEqual({
+          ...init,
+          method: 'post',
+        })
+        await new Promise((resolve) => resolve())
+        return {
+          json: {
+            foo: 'bar',
+          },
+        }
+      },
+    )
+    const res = await apiClient.post(url, init)
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body).toMatchInlineSnapshot(`
+      Object {
+        "foo": "bar",
+      }
+    `)
+  })
+
   it('should send and recieve query params', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
       query: {

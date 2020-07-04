@@ -25,17 +25,19 @@ class SimpleApiClient {
         this.defaultInit = defaultInit;
     }
     fetch(path, init) {
-        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             if (f == null) {
                 throw new Error('fetch is not defined, use setFetch to set a fetch function');
             }
             let pathNoSlash = path.replace(/^\//, '');
             let initWithDefaults;
-            if (this.defaultInit || init) {
-                initWithDefaults = Object.assign(Object.assign({}, this.defaultInit), init);
-                if ((initWithDefaults && ((_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers)) || (init === null || init === void 0 ? void 0 : init.headers)) {
-                    initWithDefaults.headers = Object.assign(Object.assign({}, (_b = this.defaultInit) === null || _b === void 0 ? void 0 : _b.headers), init === null || init === void 0 ? void 0 : init.headers);
+            let defaultInit = typeof this.defaultInit === 'function'
+                ? yield this.defaultInit(path, init)
+                : this.defaultInit;
+            if (defaultInit || init) {
+                initWithDefaults = Object.assign(Object.assign({}, defaultInit), init);
+                if ((initWithDefaults && (defaultInit === null || defaultInit === void 0 ? void 0 : defaultInit.headers)) || (init === null || init === void 0 ? void 0 : init.headers)) {
+                    initWithDefaults.headers = Object.assign(Object.assign({}, defaultInit === null || defaultInit === void 0 ? void 0 : defaultInit.headers), init === null || init === void 0 ? void 0 : init.headers);
                 }
             }
             if (initWithDefaults && initWithDefaults.json != null) {

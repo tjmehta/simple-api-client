@@ -1,3 +1,7 @@
+# v1.3.0
+
+- feature: dynamic default init can be provided via a function or async function for `defaultInit`
+
 # v1.2.0
 
 - feature: set accept and content-type headers to application/json when using json option

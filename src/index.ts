@@ -14,16 +14,30 @@ export interface ExtendedRequestInit<
   query?: QueryType
 }
 
+export type DefaultRequestInit<
+  DefaultQueryType extends QueryParamsType = {},
+  DefaultJsonType = {}
+> =
+  | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>
+  | ((
+      path: string,
+      init?: ExtendedRequestInit,
+    ) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>)
+  | ((
+      path: string,
+      init?: ExtendedRequestInit,
+    ) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>)
+
 export default class SimpleApiClient<
   DefaultQueryType extends QueryParamsType = {},
   DefaultJsonType = {}
 > {
   protected host: string
-  protected defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>
+  protected defaultInit?: DefaultRequestInit<DefaultQueryType, DefaultJsonType>
 
   constructor(
     host: string,
-    defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>,
+    defaultInit?: DefaultRequestInit<DefaultQueryType, DefaultJsonType>,
   ) {
     this.host = host.replace(/\/$/, '')
     this.defaultInit = defaultInit
@@ -41,12 +55,18 @@ export default class SimpleApiClient<
 
     let pathNoSlash = path.replace(/^\//, '')
     let initWithDefaults: ExtendedRequestInit | undefined
+    let defaultInit:
+      | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>
+      | undefined =
+      typeof this.defaultInit === 'function'
+        ? await this.defaultInit(path, init)
+        : this.defaultInit
 
-    if (this.defaultInit || init) {
-      initWithDefaults = { ...this.defaultInit, ...init }
-      if ((initWithDefaults && this.defaultInit?.headers) || init?.headers) {
+    if (defaultInit || init) {
+      initWithDefaults = { ...defaultInit, ...init }
+      if ((initWithDefaults && defaultInit?.headers) || init?.headers) {
         initWithDefaults.headers = {
-          ...this.defaultInit?.headers,
+          ...defaultInit?.headers,
           ...init?.headers,
         }
       }

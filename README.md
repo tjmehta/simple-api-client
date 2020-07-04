@@ -53,7 +53,7 @@ const json = await res.json()
 
 #### Specify default options used for all requests
 
-Fetch "init" options that are passed to the constructor are used for all requests
+Fetch "init" options that are passed to the constructor are used for all requests, default options can also be dynamic (see dynamic default options example)
 
 ```js
 import ApiClient from 'simple-api-client'
@@ -129,6 +129,45 @@ class Facebook extends ApiClient {
 const facebook = new Facebook()
 const res = await facebook.getPhotos()
 const json = await res.json()
+```
+
+#### Dynamic default options used for all requests
+
+Fetch "init" options that are passed to the constructor are used for all requests, default options can also be dynamic (see dynamic default options example)
+
+```js
+import ApiClient from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com', (url, init) => {
+  return {
+    headers: { authorization: 'token foobar' },
+  }
+})
+
+// supports async
+const client2 = new ApiClient(
+  'http://graph.facebook.com',
+  async (url, init) => {
+    const token = await db.getToken() // pseudo async function for example
+    return {
+      headers: { authorization: `token ${token}` },
+    }
+  },
+)
+
+const res = await client.get('photos', {
+  headers: { 'x-custom-header': 'custom value' },
+})
+// get request sent with headers
+// 'authorization': 'token foobar'
+// 'x-custom-header': 'custom value'
+
+const res = await client2.get('photos', {
+  headers: { 'x-custom-header': 'custom value' },
+})
+// get request sent with headers
+// 'authorization': 'token <token>'
+// 'x-custom-header': 'custom value'
 ```
 
 ## License
