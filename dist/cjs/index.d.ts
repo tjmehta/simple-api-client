@@ -4,6 +4,8 @@ import BaseError from 'baseerr';
 export declare function setFetch(_fetch: typeof fetch): void;
 export declare class FetchMissingError extends BaseError<{}> {
 }
+export declare class NetworkError extends BaseError<{}> {
+}
 export declare class StatusCodeError extends BaseError<{
     path: string;
     init?: ExtendedRequestInit | null;

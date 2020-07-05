@@ -1,3 +1,7 @@
+# v2.1.0
+
+- feature: add NetworkError
+
 # v2.0.0
 
 - feature: add json method

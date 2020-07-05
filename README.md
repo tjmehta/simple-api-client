@@ -40,13 +40,26 @@ setFetch(customFetch)
 Create a SimpleApiClient and make a get request
 
 ```js
-import ApiClient from 'simple-api-client'
+import ApiClient, { NetworkError } from 'simple-api-client'
 
 const facebook = new ApiClient('http://graph.facebook.com')
 
 // api client's fetch method supports all of fetch's options
-const res = await facebook.fetch('photos', { method: 'get' })
-const json = await res.json()
+let res
+let json
+try {
+  res = await facebook.fetch('photos', { method: 'get' })
+  json = await res.json()
+} catch (err) {
+  if (err instanceof NetworkError) {
+    console.log(err.name) // 'NetworkError'
+    console.log(err.message) // 'network error'
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get' }
+    console.log(err.source) // <original fetch error>
+  }
+  // ...
+}
 ```
 
 ## Additional fetch options to provide query params and body as json
@@ -116,15 +129,18 @@ try {
   const json = await client.json('photos', 200)
 } catch (err) {
   if (err instanceof StatusCodeError) {
+    console.log(err.name) // 'StatusCodeError'
     console.log(err.status) // 500
     console.log(err.path) // 'photos'
     console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
     console.log(err.body) // { status: 500, message: 'something bad happened' } or '500 error: something bad happened' // the body as json or text
   } else if (err instanceof InvalidResponseError) {
+    console.log(err.name) // 'InvalidResponseError'
     console.log(err.status) // 200
     console.log(err.path) // 'photos'
     console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
     console.log(err.body) // 'some non-json body' // the body as text
+    console.log(err.source) // <original json parse error>
   }
 }
 ```

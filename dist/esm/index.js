@@ -31,6 +31,8 @@ export function setFetch(_fetch) {
  */
 export class FetchMissingError extends BaseError {
 }
+export class NetworkError extends BaseError {
+}
 export class StatusCodeError extends BaseError {
 }
 export class InvalidResponseError extends BaseError {
@@ -71,7 +73,10 @@ export default class SimpleApiClient {
                     fetchPath = `${fetchPath}?${queryString}`;
                 }
             }
-            return f(fetchPath, fetchInit);
+            return f(fetchPath, fetchInit).catch((err) => NetworkError.wrapAndThrow(err, 'network error', {
+                path,
+                init,
+            }));
         });
     }
     // convenience fetch method for json

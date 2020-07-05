@@ -14,6 +14,7 @@ export function setFetch(_fetch: typeof fetch) {
  * exported errors
  */
 export class FetchMissingError extends BaseError<{}> {}
+export class NetworkError extends BaseError<{}> {}
 export class StatusCodeError extends BaseError<{
   path: string
   init?: ExtendedRequestInit | null
@@ -122,7 +123,12 @@ export default class SimpleApiClient<
       }
     }
 
-    return f(fetchPath, fetchInit)
+    return f(fetchPath, fetchInit).catch((err) =>
+      NetworkError.wrapAndThrow(err, 'network error', {
+        path,
+        init,
+      }),
+    )
   }
 
   // convenience fetch method for json

@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.InvalidResponseError = exports.StatusCodeError = exports.FetchMissingError = exports.setFetch = void 0;
+exports.InvalidResponseError = exports.StatusCodeError = exports.NetworkError = exports.FetchMissingError = exports.setFetch = void 0;
 const bodyToString_1 = __importDefault(require("./bodyToString"));
 const queryToString_1 = __importDefault(require("./queryToString"));
 const baseerr_1 = __importDefault(require("baseerr"));
@@ -39,6 +39,9 @@ exports.setFetch = setFetch;
 class FetchMissingError extends baseerr_1.default {
 }
 exports.FetchMissingError = FetchMissingError;
+class NetworkError extends baseerr_1.default {
+}
+exports.NetworkError = NetworkError;
 class StatusCodeError extends baseerr_1.default {
 }
 exports.StatusCodeError = StatusCodeError;
@@ -81,7 +84,10 @@ class SimpleApiClient {
                     fetchPath = `${fetchPath}?${queryString}`;
                 }
             }
-            return f(fetchPath, fetchInit);
+            return f(fetchPath, fetchInit).catch((err) => NetworkError.wrapAndThrow(err, 'network error', {
+                path,
+                init,
+            }));
         });
     }
     // convenience fetch method for json
