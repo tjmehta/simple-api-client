@@ -211,6 +211,6 @@ const res = await facebook.getPhotos()
 const json = await res.json()
 ```
 
-## License
+# License
 
 MIT
