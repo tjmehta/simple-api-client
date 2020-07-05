@@ -1,5 +1,9 @@
 import { Server, createServer } from 'http'
-import SimpleApiClient, { setFetch } from '../index'
+import SimpleApiClient, {
+  InvalidResponseError,
+  StatusCodeError,
+  setFetch,
+} from '../index'
 
 import fetch from 'cross-fetch'
 
@@ -10,7 +14,10 @@ describe('SimpleApiClient', () => {
   let server: Server | undefined
   beforeEach(async () => {
     server = createServer((req, res) => {
-      if (req.url === '/body') {
+      if (req.url === '/notjson') {
+        res.statusCode = 200
+        res.end('not json')
+      } else if (req.url === '/body') {
         res.statusCode = 200
         req.pipe(res)
       } else if (req.url === '/headers') {
@@ -21,7 +28,7 @@ describe('SimpleApiClient', () => {
         res.end(JSON.stringify(req.url))
       } else {
         res.statusCode = 200
-        res.end('hello world')
+        res.end(JSON.stringify({ message: 'hello world' }))
       }
     })
     await new Promise((resolve, reject) => {
@@ -34,29 +41,35 @@ describe('SimpleApiClient', () => {
       server.close((err) => (err ? reject(err) : resolve())),
     )
   })
-  const methods = ['get', 'post', 'put', 'head', 'delete', 'options', 'patch']
+  const methods = ['get', 'post', 'put', 'delete', 'options', 'patch']
 
   // generated tests to test every method
   methods.forEach((method) => {
     it(`should make a ${method} request`, async () => {
       const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
-      const res = await apiClient[method]('/')
-      const body = await res.text()
-      expect(res.status).toBe(200)
-      if (method === 'head') {
-        expect(body).toBe('')
-      } else {
-        expect(body).toBe('hello world')
-      }
+      const json = await apiClient[method]('/')
+      expect(json).toEqual({
+        message: 'hello world',
+      })
     })
+  })
+
+  it('should make a head request', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const res = await apiClient.head('/')
+    const body = await res.text()
+    expect(res.status).toBe(200)
+    expect(body).toBe('')
   })
 
   it('should make a get request using fetch', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const res = await apiClient.fetch('/')
-    const body = await res.text()
+    const json = await res.json()
     expect(res.status).toBe(200)
-    expect(body).toBe('hello world')
+    expect(json).toEqual({
+      message: 'hello world',
+    })
   })
 
   it('should error if json body is not an object', async () => {
@@ -64,28 +77,58 @@ describe('SimpleApiClient', () => {
     const circular = { circular: {} }
     circular.circular = circular
     await expect(async () => {
-      const res = await apiClient.post('body', {
+      await apiClient.post('body', {
         json: circular,
       })
-      const json = await res.json()
-      console.log(json)
     }).rejects.toThrow(/cannot stringify/)
   })
 
   it('should send and recieve a json', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
-    const res = await apiClient.post<{ foo: string }>('body', {
+    const body = await apiClient.post<{ foo: string }>('body', {
       json: {
         foo: 'bar',
       },
     })
-    const body = await res.json()
-    expect(res.status).toBe(200)
     expect(body).toMatchInlineSnapshot(`
       Object {
         "foo": "bar",
       }
     `)
+  })
+
+  it('should send and recieve a json via json method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const json = await apiClient.json<{ foo: string }>('body', 200, {
+      method: 'post',
+      json: {
+        foo: 'bar',
+      },
+    })
+    expect(json).toMatchInlineSnapshot(`
+      Object {
+        "foo": "bar",
+      }
+    `)
+  })
+
+  it('should send and reject w/ a status code error via json method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    await expect(async () => {
+      await apiClient.json<{ foo: string }>('body', 201, {
+        method: 'post',
+        json: {
+          foo: 'bar',
+        },
+      })
+    }).rejects.toThrow(StatusCodeError)
+  })
+
+  it('should send and reject w/ a status code error via json method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    await expect(async () => {
+      await apiClient.json<{ foo: string }>('notjson', 200)
+    }).rejects.toThrow(InvalidResponseError)
   })
 
   it('should send and recieve a json (default init)', async () => {
@@ -94,9 +137,7 @@ describe('SimpleApiClient', () => {
         foo: 'bar',
       },
     })
-    const res = await apiClient.post('body')
-    const body = await res.json()
-    expect(res.status).toBe(200)
+    const body = await apiClient.post('body')
     expect(body).toMatchInlineSnapshot(`
       Object {
         "foo": "bar",
@@ -109,22 +150,23 @@ describe('SimpleApiClient', () => {
     const init = {}
     const apiClient = new SimpleApiClient(
       `http://localhost:${PORT}`,
-      (url, _init) => {
+      (_init) => {
         expect(url).toBe('body')
-        expect(_init).toEqual({
-          ...init,
-          method: 'post',
-        })
+        expect(_init).toEqual(
+          expect.objectContaining({
+            ...init,
+            method: 'post',
+          }),
+        )
         return {
           json: {
             foo: 'bar',
           },
+          ..._init,
         }
       },
     )
-    const res = await apiClient.post('body')
-    const body = await res.json()
-    expect(res.status).toBe(200)
+    const body = await apiClient.post('body')
     expect(body).toMatchInlineSnapshot(`
       Object {
         "foo": "bar",
@@ -137,23 +179,24 @@ describe('SimpleApiClient', () => {
     const init = {}
     const apiClient = new SimpleApiClient(
       `http://localhost:${PORT}`,
-      async (url, _init) => {
+      async (_init) => {
         expect(url).toBe('body')
-        expect(_init).toEqual({
-          ...init,
-          method: 'post',
-        })
+        expect(_init).toEqual(
+          expect.objectContaining({
+            ...init,
+            method: 'post',
+          }),
+        )
         await new Promise((resolve) => resolve())
         return {
           json: {
             foo: 'bar',
           },
+          ..._init,
         }
       },
     )
-    const res = await apiClient.post(url, init)
-    const body = await res.json()
-    expect(res.status).toBe(200)
+    const body = await apiClient.post(url, init)
     expect(body).toMatchInlineSnapshot(`
       Object {
         "foo": "bar",
@@ -168,10 +211,8 @@ describe('SimpleApiClient', () => {
         bar: ['one', 'two'],
       },
     })
-    const res = await apiClient.get('query')
-    const body = await res.text()
-    expect(res.status).toBe(200)
-    expect(body).toMatchInlineSnapshot(`"\\"/query?foo=val&bar=one&bar=two\\""`)
+    const body = await apiClient.get('query')
+    expect(body).toMatchInlineSnapshot(`"/query?foo=val&bar=one&bar=two"`)
   })
 
   it('should send and recieve query params (default init)', async () => {
@@ -181,10 +222,8 @@ describe('SimpleApiClient', () => {
         bar: ['one', 'two'],
       },
     })
-    const res = await apiClient.post('query')
-    const body = await res.text()
-    expect(res.status).toBe(200)
-    expect(body).toMatchInlineSnapshot(`"\\"/query?foo=val&bar=one&bar=two\\""`)
+    const body = await apiClient.post('query')
+    expect(body).toMatchInlineSnapshot(`"/query?foo=val&bar=one&bar=two"`)
   })
 
   it('should send and recieve a headers (default init)', async () => {
@@ -193,16 +232,14 @@ describe('SimpleApiClient', () => {
         'x-custom-first': 'foo',
       },
     })
-    const res = await apiClient.post<{ foo: string }>('headers', {
+    const body = await apiClient.post<{ foo: string }>('headers', {
       headers: {
         'x-custom-second': 'bar',
       },
     })
-    const body = await res.json()
-    expect(res.status).toBe(200)
     expect(body).toMatchInlineSnapshot(`
       Object {
-        "accept": "*/*",
+        "accept": "application/json",
         "accept-encoding": "gzip,deflate",
         "connection": "close",
         "content-length": "0",
@@ -223,7 +260,7 @@ describe('SimpleApiClient', () => {
       const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
       await expect(async () => {
         await apiClient.get('/')
-      }).rejects.toThrow(/fetch is not defined/)
+      }).rejects.toThrow(/fetch is not/)
     })
   })
 })
