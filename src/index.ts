@@ -1,4 +1,8 @@
+import bodyToString, { BodyType } from './bodyToString'
 import queryToString, { QueryParamsType } from './queryToString'
+
+import BaseError from 'baseerr'
+import isRegExp from 'is-regexp'
 
 let f = typeof fetch === 'function' ? fetch : undefined
 
@@ -6,6 +10,29 @@ export function setFetch(_fetch: typeof fetch) {
   f = _fetch
 }
 
+/*
+ * exported errors
+ */
+export class FetchMissingError extends BaseError<{}> {}
+export class StatusCodeError extends BaseError<{
+  path: string
+  init?: ExtendedRequestInit | null
+  expectedStatus: number | RegExp | null | undefined
+  status: number
+  body?: string | BodyType
+}> {}
+
+export class InvalidResponseError extends BaseError<{
+  path: string
+  init?: ExtendedRequestInit | null
+  expectedStatus: number | RegExp | null | undefined
+  status: number
+  body?: string | BodyType
+}> {}
+
+/*
+ * exported types
+ */
 export interface ExtendedRequestInit<
   QueryType extends QueryParamsType = {},
   JsonType = {}
@@ -14,136 +41,334 @@ export interface ExtendedRequestInit<
   query?: QueryType
 }
 
-export type DefaultRequestInit<
+export type GetRequestInit<
   DefaultQueryType extends QueryParamsType = {},
   DefaultJsonType = {}
 > =
-  | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>
   | ((
-      path: string,
       init?: ExtendedRequestInit,
     ) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>)
   | ((
-      path: string,
       init?: ExtendedRequestInit,
     ) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>)
 
+/*
+ * SimpleApiClient Class
+ */
 export default class SimpleApiClient<
   DefaultQueryType extends QueryParamsType = {},
   DefaultJsonType = {}
 > {
-  protected host: string
-  protected defaultInit?: DefaultRequestInit<DefaultQueryType, DefaultJsonType>
+  protected readonly host: string
+  protected readonly getInit?: GetRequestInit<DefaultQueryType, DefaultJsonType>
+  protected readonly defaultInit?: ExtendedRequestInit<
+    DefaultQueryType,
+    DefaultJsonType
+  >
 
   constructor(
     host: string,
-    defaultInit?: DefaultRequestInit<DefaultQueryType, DefaultJsonType>,
+    getInit?:
+      | GetRequestInit<DefaultQueryType, DefaultJsonType>
+      | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>,
   ) {
     this.host = host.replace(/\/$/, '')
-    this.defaultInit = defaultInit
+    if (typeof getInit === 'function') {
+      this.getInit = getInit
+    } else {
+      this.defaultInit = getInit
+    }
   }
 
   async fetch<QueryType extends QueryParamsType, JsonType = {}>(
     path: string,
     init?: ExtendedRequestInit<QueryType, JsonType>,
   ): Promise<Response> {
-    if (f == null) {
-      throw new Error(
-        'fetch is not defined, use setFetch to set a fetch function',
+    if (typeof f !== 'function') {
+      throw new FetchMissingError(
+        'fetch is not a function, use setFetch to set a fetch function',
+        { fetch: f },
       )
     }
 
-    let pathNoSlash = path.replace(/^\//, '')
-    let initWithDefaults: ExtendedRequestInit | undefined
-    let defaultInit:
-      | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>
-      | undefined =
-      typeof this.defaultInit === 'function'
-        ? await this.defaultInit(path, init)
-        : this.defaultInit
+    let extendedInit: ExtendedRequestInit = this.getInit
+      ? await this.getInit(init)
+      : init || {}
+    extendedInit = {
+      ...this.defaultInit,
+      ...extendedInit,
+      headers: {
+        ...this.defaultInit?.headers,
+        ...extendedInit.headers,
+      },
+    }
+    const { json, query, ..._fetchInit } = extendedInit
+    const fetchInit: RequestInit = _fetchInit
+    let fetchPath = `${this.host}/${path.replace(/^\//, '')}`
 
-    if (defaultInit || init) {
-      initWithDefaults = { ...defaultInit, ...init }
-      if ((initWithDefaults && defaultInit?.headers) || init?.headers) {
-        initWithDefaults.headers = {
-          ...defaultInit?.headers,
-          ...init?.headers,
-        }
+    if (json != null) {
+      fetchInit.body = bodyToString(json)
+      fetchInit.headers = {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        ...fetchInit.headers,
       }
     }
 
-    if (initWithDefaults && initWithDefaults.json != null) {
-      try {
-        initWithDefaults.body = JSON.stringify(initWithDefaults.json)
-        initWithDefaults.headers = {
-          accept: 'application/json',
-          'content-type': 'application/json',
-          ...initWithDefaults.headers,
-        }
-        delete initWithDefaults.json
-      } catch (err) {
-        throw new Error('cannot stringify json body: ' + err.message)
+    if (query != null) {
+      const queryString = queryToString(query)
+      if (queryString.length) {
+        fetchPath = `${fetchPath}?${queryString}`
       }
     }
 
-    if (initWithDefaults && initWithDefaults.query != null) {
-      try {
-        const queryString = queryToString(initWithDefaults.query)
-        if (queryString.length) {
-          pathNoSlash = `${pathNoSlash}?${queryString}`
-        }
-        delete initWithDefaults.query
-      } catch (err) {
-        throw new Error('cannot stringify json query: ' + err.message)
-      }
-    }
-
-    return f(`${this.host}/${pathNoSlash}`, initWithDefaults)
+    return f(fetchPath, fetchInit)
   }
 
-  // methods that are unlikely to have a body
-  async get<QueryType extends QueryParamsType = {}, JsonType = undefined>(
+  // convenience fetch method for json
+  async json<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'get' })
+    // check arguments
+    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make request
+    const res = await this.fetch<QueryType, JsonType>(path, {
+      ..._init,
+      headers: {
+        accept: 'application/json',
+        ..._init?.headers,
+      },
+    })
+
+    // assert expected status code was received
+    if (
+      expectedStatus != null &&
+      (expectedStatus !== res.status ||
+        (isRegExp(expectedStatus) &&
+          !expectedStatus.test(res.status.toString())))
+    ) {
+      let body: string | BodyType | undefined
+      try {
+        body = await res.text()
+        body = JSON.parse(body)
+      } finally {
+        throw new StatusCodeError(`unexpected status`, {
+          expectedStatus: _expectedStatus,
+          status: res.status,
+          path,
+          init: _init,
+          body,
+        })
+      }
+    }
+
+    // get response body as a json
+    let body
+    try {
+      body = await res.text()
+      body = JSON.parse(body)
+    } catch (err) {
+      throw InvalidResponseError.wrap(err, 'invalid response', {
+        expectedStatus: _expectedStatus,
+        status: res.status,
+        path,
+        init: _init,
+        body,
+      })
+    }
+
+    return body
   }
+
+  // response bodyless methods
   async head<QueryType extends QueryParamsType = {}, JsonType = undefined>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'head' })
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+    return this.fetch<QueryType, JsonType>(path, {
+      ..._init,
+      method: 'head',
+    })
+  }
+
+  // request bodyless methods
+  async get<QueryType extends QueryParamsType = {}, JsonType = undefined>(
+    path: string,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
+  ) {
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+    return this.json<JsonType, QueryType>(path, _expectedStatus, {
+      ..._init,
+      method: 'get',
+    })
   }
   async options<QueryType extends QueryParamsType = {}, JsonType = undefined>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'options' })
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+    return this.json<JsonType, QueryType>(path, _expectedStatus, {
+      ..._init,
+      method: 'options',
+    })
   }
 
-  // methods that are likely to have a body
+  // request and response body methods
   async post<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'post' })
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+
+    return this.json<JsonType, QueryType>(path, _expectedStatus, {
+      ..._init,
+      method: 'post',
+    })
   }
   async put<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'put' })
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+    return this.json<JsonType, QueryType>(path, _expectedStatus, {
+      ..._init,
+      method: 'put',
+    })
   }
   async delete<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'delete' })
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+    return this.json<JsonType, QueryType>(path, _expectedStatus, {
+      ..._init,
+      method: 'delete',
+    })
   }
   async patch<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
-    return this.fetch<QueryType, JsonType>(path, { ...init, method: 'patch' })
+    // check arguments
+    const [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make json request
+    return this.json<JsonType, QueryType>(path, _expectedStatus, {
+      ..._init,
+      method: 'patch',
+    })
   }
+}
+
+function getMethodArgs<JsonType = {}, QueryType extends QueryParamsType = {}>(
+  expectedStatus?:
+    | number
+    | RegExp
+    | ExtendedRequestInit<QueryType, JsonType>
+    | null,
+  init?: ExtendedRequestInit<QueryType, JsonType> | null,
+): [
+  number | RegExp | undefined | null,
+  ExtendedRequestInit<QueryType, JsonType> | undefined | null,
+] {
+  let _expectedStatus: number | RegExp | undefined | null
+  let _init: ExtendedRequestInit<QueryType, JsonType> | undefined | null
+  if (
+    expectedStatus == null ||
+    typeof expectedStatus === 'number' ||
+    isRegExp(expectedStatus)
+  ) {
+    _expectedStatus = expectedStatus
+    _init = init
+  } else {
+    _init = expectedStatus as ExtendedRequestInit<QueryType, JsonType>
+    _expectedStatus = null
+  }
+
+  return [_expectedStatus, _init]
 }

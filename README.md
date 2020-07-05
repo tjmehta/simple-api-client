@@ -19,7 +19,9 @@ import AbstractStartable from 'abstract-startable`
 const AbstractStartable = require('abstract-startable')
 ```
 
-#### Specify fetch
+### SimpleApiClient is a thin wrapper over fetch
+
+#### Specify fetch implementation
 
 SimpleApiClient will use the global fetch by default, but if you're using ponyfills or want to specify a custom fetch use `setFetch`
 
@@ -42,37 +44,16 @@ import ApiClient from 'simple-api-client'
 
 const facebook = new ApiClient('http://graph.facebook.com')
 
-// SimpleApiClient has convenience methods for get, post, put, head, delete, options, & patch.
-const res = await facebook.get('photos')
-const json = await res.json()
-
-// You can make request with additional methods by using fetch and specifying any method
-const res = await facebook.fetch('photos', { method: 'subscribe' })
+// api client's fetch method supports all of fetch's options
+const res = await facebook.fetch('photos', { method: 'get' })
 const json = await res.json()
 ```
 
-#### Specify default options used for all requests
+### SimpleApiClient extends fetch init options to make it easier to specify request query params and body as json
 
-Fetch "init" options that are passed to the constructor are used for all requests, default options can also be dynamic (see dynamic default options example)
+#### Easily send url query params as json
 
-```js
-import ApiClient from 'simple-api-client'
-
-const client = new ApiClient('http://graph.facebook.com', {
-  headers: { authorization: 'token foobar' },
-})
-
-const res = await client.get('photos', {
-  headers: { 'x-custom-header': 'custom value' },
-})
-// get request sent with headers
-// 'authorization': 'token foobar'
-// 'x-custom-header': 'custom value'
-```
-
-#### Easily send json data to an api
-
-SimpleApiClient's fetch "init" options are extended to accept a 'json' property
+SimpleApiClient's fetch `init` options are extended to accept a `query` property which supports query params as json, `query` will be stringified and added to the url using [URLSearchParams](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams).
 
 ```js
 import ApiClient from 'simple-api-client'
@@ -81,27 +62,7 @@ const client = new ApiClient('http://graph.facebook.com', {
   headers: { authorization: 'token foobar' },
 })
 
-const res = await client.post('photos', {
-  json: {
-    foo: 'val',
-  },
-})
-// simple api client will stringify the json for you
-// request headers "accept" and "content-type" will be defaulted to "application/json"
-```
-
-#### Easily request a url with custom query params
-
-SimpleApiClient's fetch "init" options are extended to accept a 'json' property
-
-```js
-import ApiClient from 'simple-api-client'
-
-const client = new ApiClient('http://graph.facebook.com', {
-  headers: { authorization: 'token foobar' },
-})
-
-const res = await client.get('photos', {
+const res = await client.fetch('photos', {
   query: {
     foo: 'val',
     bar: ['one', 'two'],
@@ -110,6 +71,125 @@ const res = await client.get('photos', {
 // simple api client will stringify the query params for you
 // the url will be: http://graph.facebook.com/photos?foo=val&bar=one&bar=two
 ```
+
+#### Easily send json data to an api
+
+SimpleApiClient's fetch `init` options are extended to accept a 'json' property. `json` will be stringified and sent to the server as the requests body. Also, content-type headers, `accept` and `content-type`, will be defaulted to `application/json` (overridden if specified).
+
+```js
+import ApiClient from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com', {
+  headers: { authorization: 'token foobar' },
+})
+
+const res = await client.fetch('photos', {
+  method: 'post',
+  json: {
+    foo: 'val',
+  },
+})
+// simple api client will stringify the json for you
+// request headers "accept" and "content-type" will be defaulted to "application/json"
+```
+
+### SimpleApiClient extends fetch with syntactic sugar for recieving json responses from an api
+
+#### Easily receive json data from an api
+
+SimpleApiClient's implements a `json` method. The `json` method works similarly to fetch but assumes responses from the server are json. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as json a `InvalidResponseError` will be thrown. Otherwise, json will resolve the response's body as a json object. See the example below.
+
+```js
+import ApiClient, {
+  StatusCodeError,
+  InvalidResponseError,
+} from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com', {
+  headers: { authorization: 'token foobar' },
+})
+
+try {
+  // expected status code is the second argument and optional, can also be a regexp like /200|201/
+  // json will assume you are fetching json from your api, and will verify the status code
+  // expected status codes are optional and can be provided as a number or regexp
+  const json = await client.json('photos', 200)
+} catch (err) {
+  if (err instanceof StatusCodeError) {
+    console.log(err.status) // 500
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
+    console.log(err.body) // { status: 500, message: 'something bad happened' } or '500 error: something bad happened' // the body as json or text
+  } else if (err instanceof InvalidResponseError) {
+    console.log(err.status) // 200
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
+    console.log(err.body) // 'some non-json body' // the body as text
+  }
+}
+```
+
+### SimpleApiClient make it easy to provide default or dynamic options to all requests
+
+#### Easily specify default fetch options used for all requests
+
+Fetch `init` options that are passed to the constructor are used for all requests. By default, init shallow defaults to defaultInit but headers are deeply merged. If want dynamic options for all requests checkout the "Dynamic fetch options for all requests" example below.
+
+```js
+import ApiClient from 'simple-api-client'
+let client, res
+client = new ApiClient('http://graph.facebook.com', {
+  headers: { authorization: 'token foobar' },
+})
+res = await client.fetch('photos', {
+  headers: { 'x-custom-header': 'custom value' },
+})
+// get request sent with headers
+// 'authorization': 'token foobar'
+// 'x-custom-header': 'custom value'
+```
+
+#### For advanced scenarios dynamic fetch options can be computed for every request
+
+Fetch `init` options can be dynamically generated for every request by passing in a function (or async function) that returns init (or a promise). This function will receive the user provided options as an argument, and it's returned value will be used for the request.
+
+```js
+import ApiClient from 'simple-api-client'
+let client, res
+client = new ApiClient('http://graph.facebook.com', (init) => ({
+  ...init,
+  headers: {
+    authorization: 'token foobar'
+    ...init?.headers
+  },
+}))
+res = await client.fetch('photos', {
+  headers: { 'x-custom-header': 'custom value' },
+})
+// get request sent with headers
+// 'authorization': 'token foobar'
+// 'x-custom-header': 'custom value'
+
+// can also be an async function
+client = new ApiClient('http://graph.facebook.com', async (init) => {
+  const token = await getToken() // some async function..
+  return {
+    ...init,
+    headers: {
+      authorization: `token ${token}`
+      ...init?.headers
+    },
+  }
+})
+res = await client.fetch('photos', {
+  headers: { 'x-custom-header': 'custom value' },
+})
+// get request sent with headers
+// 'authorization': 'token <token>'
+// 'x-custom-header': 'custom value'
+```
+
+### SimpleApiClient is a great base class to create a custom api client
 
 #### Extend SimpleApiClient to make a custom api client.
 
@@ -129,45 +209,6 @@ class Facebook extends ApiClient {
 const facebook = new Facebook()
 const res = await facebook.getPhotos()
 const json = await res.json()
-```
-
-#### Dynamic default options used for all requests
-
-Fetch "init" options that are passed to the constructor are used for all requests, default options can also be dynamic (see dynamic default options example)
-
-```js
-import ApiClient from 'simple-api-client'
-
-const client = new ApiClient('http://graph.facebook.com', (url, init) => {
-  return {
-    headers: { authorization: 'token foobar' },
-  }
-})
-
-// supports async
-const client2 = new ApiClient(
-  'http://graph.facebook.com',
-  async (url, init) => {
-    const token = await db.getToken() // pseudo async function for example
-    return {
-      headers: { authorization: `token ${token}` },
-    }
-  },
-)
-
-const res = await client.get('photos', {
-  headers: { 'x-custom-header': 'custom value' },
-})
-// get request sent with headers
-// 'authorization': 'token foobar'
-// 'x-custom-header': 'custom value'
-
-const res = await client2.get('photos', {
-  headers: { 'x-custom-header': 'custom value' },
-})
-// get request sent with headers
-// 'authorization': 'token <token>'
-// 'x-custom-header': 'custom value'
 ```
 
 ## License

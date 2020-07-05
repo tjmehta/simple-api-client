@@ -7,93 +7,191 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
+import bodyToString from './bodyToString';
 import queryToString from './queryToString';
+import BaseError from 'baseerr';
+import isRegExp from 'is-regexp';
 let f = typeof fetch === 'function' ? fetch : undefined;
 export function setFetch(_fetch) {
     f = _fetch;
 }
+/*
+ * exported errors
+ */
+export class FetchMissingError extends BaseError {
+}
+export class StatusCodeError extends BaseError {
+}
+export class InvalidResponseError extends BaseError {
+}
+/*
+ * SimpleApiClient Class
+ */
 export default class SimpleApiClient {
-    constructor(host, defaultInit) {
+    constructor(host, getInit) {
         this.host = host.replace(/\/$/, '');
-        this.defaultInit = defaultInit;
+        if (typeof getInit === 'function') {
+            this.getInit = getInit;
+        }
+        else {
+            this.defaultInit = getInit;
+        }
     }
     fetch(path, init) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            if (f == null) {
-                throw new Error('fetch is not defined, use setFetch to set a fetch function');
+            if (typeof f !== 'function') {
+                throw new FetchMissingError('fetch is not a function, use setFetch to set a fetch function', { fetch: f });
             }
-            let pathNoSlash = path.replace(/^\//, '');
-            let initWithDefaults;
-            let defaultInit = typeof this.defaultInit === 'function'
-                ? yield this.defaultInit(path, init)
-                : this.defaultInit;
-            if (defaultInit || init) {
-                initWithDefaults = Object.assign(Object.assign({}, defaultInit), init);
-                if ((initWithDefaults && (defaultInit === null || defaultInit === void 0 ? void 0 : defaultInit.headers)) || (init === null || init === void 0 ? void 0 : init.headers)) {
-                    initWithDefaults.headers = Object.assign(Object.assign({}, defaultInit === null || defaultInit === void 0 ? void 0 : defaultInit.headers), init === null || init === void 0 ? void 0 : init.headers);
+            let extendedInit = this.getInit
+                ? yield this.getInit(init)
+                : init || {};
+            extendedInit = Object.assign(Object.assign(Object.assign({}, this.defaultInit), extendedInit), { headers: Object.assign(Object.assign({}, (_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers), extendedInit.headers) });
+            const { json, query } = extendedInit, _fetchInit = __rest(extendedInit, ["json", "query"]);
+            const fetchInit = _fetchInit;
+            let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
+            if (json != null) {
+                fetchInit.body = bodyToString(json);
+                fetchInit.headers = Object.assign({ accept: 'application/json', 'content-type': 'application/json' }, fetchInit.headers);
+            }
+            if (query != null) {
+                const queryString = queryToString(query);
+                if (queryString.length) {
+                    fetchPath = `${fetchPath}?${queryString}`;
                 }
             }
-            if (initWithDefaults && initWithDefaults.json != null) {
+            return f(fetchPath, fetchInit);
+        });
+    }
+    // convenience fetch method for json
+    json(path, expectedStatus, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check arguments
+            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make request
+            const res = yield this.fetch(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers) }));
+            // assert expected status code was received
+            if (expectedStatus != null &&
+                (expectedStatus !== res.status ||
+                    (isRegExp(expectedStatus) &&
+                        !expectedStatus.test(res.status.toString())))) {
+                let body;
                 try {
-                    initWithDefaults.body = JSON.stringify(initWithDefaults.json);
-                    initWithDefaults.headers = Object.assign({ accept: 'application/json', 'content-type': 'application/json' }, initWithDefaults.headers);
-                    delete initWithDefaults.json;
+                    body = yield res.text();
+                    body = JSON.parse(body);
                 }
-                catch (err) {
-                    throw new Error('cannot stringify json body: ' + err.message);
-                }
-            }
-            if (initWithDefaults && initWithDefaults.query != null) {
-                try {
-                    const queryString = queryToString(initWithDefaults.query);
-                    if (queryString.length) {
-                        pathNoSlash = `${pathNoSlash}?${queryString}`;
-                    }
-                    delete initWithDefaults.query;
-                }
-                catch (err) {
-                    throw new Error('cannot stringify json query: ' + err.message);
+                finally {
+                    throw new StatusCodeError(`unexpected status`, {
+                        expectedStatus: _expectedStatus,
+                        status: res.status,
+                        path,
+                        init: _init,
+                        body,
+                    });
                 }
             }
-            return f(`${this.host}/${pathNoSlash}`, initWithDefaults);
+            // get response body as a json
+            let body;
+            try {
+                body = yield res.text();
+                body = JSON.parse(body);
+            }
+            catch (err) {
+                throw InvalidResponseError.wrap(err, 'invalid response', {
+                    expectedStatus: _expectedStatus,
+                    status: res.status,
+                    path,
+                    init: _init,
+                    body,
+                });
+            }
+            return body;
         });
     }
-    // methods that are unlikely to have a body
-    get(path, init) {
+    // response bodyless methods
+    head(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'get' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.fetch(path, Object.assign(Object.assign({}, _init), { method: 'head' }));
         });
     }
-    head(path, init) {
+    // request bodyless methods
+    get(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'head' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'get' }));
         });
     }
-    options(path, init) {
+    options(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'options' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'options' }));
         });
     }
-    // methods that are likely to have a body
-    post(path, init) {
+    // request and response body methods
+    post(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'post' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'post' }));
         });
     }
-    put(path, init) {
+    put(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'put' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'put' }));
         });
     }
-    delete(path, init) {
+    delete(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'delete' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'delete' }));
         });
     }
-    patch(path, init) {
+    patch(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.fetch(path, Object.assign(Object.assign({}, init), { method: 'patch' }));
+            // check arguments
+            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make json request
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'patch' }));
         });
     }
+}
+function getMethodArgs(expectedStatus, init) {
+    let _expectedStatus;
+    let _init;
+    if (expectedStatus == null ||
+        typeof expectedStatus === 'number' ||
+        isRegExp(expectedStatus)) {
+        _expectedStatus = expectedStatus;
+        _init = init;
+    }
+    else {
+        _init = expectedStatus;
+        _expectedStatus = null;
+    }
+    return [_expectedStatus, _init];
 }
 //# sourceMappingURL=index.js.map

@@ -1,3 +1,8 @@
+# v2.0.0
+
+- feature: add json method
+- breaking: make all http method methods (get, put, post, delete, ...) assume json response/request bodies
+
 # v1.3.0
 
 - feature: dynamic default init can be provided via a function or async function for `defaultInit`
