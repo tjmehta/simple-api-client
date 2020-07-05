@@ -1,3 +1,7 @@
+# v2.1.1
+
+- patch: export QueryParamsType
+
 # v2.1.0
 
 - feature: add NetworkError

@@ -22,6 +22,7 @@ export declare class InvalidResponseError extends BaseError<{
     body?: string | BodyType;
 }> {
 }
+export { QueryParamsType } from './queryToString';
 export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
     json?: JsonType;
     query?: QueryType;

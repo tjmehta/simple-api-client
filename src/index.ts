@@ -34,6 +34,7 @@ export class InvalidResponseError extends BaseError<{
 /*
  * exported types
  */
+export { QueryParamsType } from './queryToString'
 export interface ExtendedRequestInit<
   QueryType extends QueryParamsType = {},
   JsonType = {}
