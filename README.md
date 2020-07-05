@@ -19,9 +19,9 @@ import AbstractStartable from 'abstract-startable`
 const AbstractStartable = require('abstract-startable')
 ```
 
-### SimpleApiClient is a thin wrapper over fetch
+## A thin wrapper over fetch
 
-#### Specify fetch implementation
+### Specify fetch implementation
 
 SimpleApiClient will use the global fetch by default, but if you're using ponyfills or want to specify a custom fetch use `setFetch`
 
@@ -35,7 +35,7 @@ function customFetch(url: string, init: {}) {
 setFetch(customFetch)
 ```
 
-#### Create an instance and make a request
+### Create an instance and make a request
 
 Create a SimpleApiClient and make a get request
 
@@ -49,9 +49,9 @@ const res = await facebook.fetch('photos', { method: 'get' })
 const json = await res.json()
 ```
 
-### SimpleApiClient extends fetch init options to make it easier to specify request query params and body as json
+## Additional fetch options to provide query params and body as json
 
-#### Easily send url query params as json
+### Easily provide url query params as a json
 
 SimpleApiClient's fetch `init` options are extended to accept a `query` property which supports query params as json, `query` will be stringified and added to the url using [URLSearchParams](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams).
 
@@ -72,9 +72,9 @@ const res = await client.fetch('photos', {
 // the url will be: http://graph.facebook.com/photos?foo=val&bar=one&bar=two
 ```
 
-#### Easily send json data to an api
+### Easily specify request body as a json
 
-SimpleApiClient's fetch `init` options are extended to accept a 'json' property. `json` will be stringified and sent to the server as the requests body. Also, content-type headers, `accept` and `content-type`, will be defaulted to `application/json` (overridden if specified).
+SimpleApiClient's fetch options are extended to accept a 'json' property. `json` will be stringified and sent to the server as the requests body. Also, content-type headers, `accept` and `content-type`, will be defaulted to `application/json` (overridden if specified).
 
 ```js
 import ApiClient from 'simple-api-client'
@@ -93,9 +93,9 @@ const res = await client.fetch('photos', {
 // request headers "accept" and "content-type" will be defaulted to "application/json"
 ```
 
-### SimpleApiClient extends fetch with syntactic sugar for recieving json responses from an api
+## Syntactic sugar for recieving json responses
 
-#### Easily receive json data from an api
+### Easily receive json data from an api
 
 SimpleApiClient's implements a `json` method. The `json` method works similarly to fetch but assumes responses from the server are json. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as json a `InvalidResponseError` will be thrown. Otherwise, json will resolve the response's body as a json object. See the example below.
 
@@ -129,11 +129,11 @@ try {
 }
 ```
 
-### SimpleApiClient make it easy to provide default or dynamic options to all requests
+## Provide default or dynamic options to all requests
 
-#### Easily specify default fetch options used for all requests
+### Easily specify default fetch options used for all requests
 
-Fetch `init` options that are passed to the constructor are used for all requests. By default, init shallow defaults to defaultInit but headers are deeply merged. If want dynamic options for all requests checkout the "Dynamic fetch options for all requests" example below.
+Fetch options that are passed to the constructor are used for all requests. By default, init shallow defaults to defaultInit but headers are deeply merged. If want dynamic options for all requests checkout the "Dynamic fetch options for all requests" example below.
 
 ```js
 import ApiClient from 'simple-api-client'
@@ -149,9 +149,9 @@ res = await client.fetch('photos', {
 // 'x-custom-header': 'custom value'
 ```
 
-#### For advanced scenarios dynamic fetch options can be computed for every request
+### Compute dynamic fetch options for every request
 
-Fetch `init` options can be dynamically generated for every request by passing in a function (or async function) that returns init (or a promise). This function will receive the user provided options as an argument, and it's returned value will be used for the request.
+Fetch options can be dynamically generated for every request by passing in a function (or async function) that returns init (or a promise). This function will receive the user provided options as an argument, and it's returned value will be used for the request.
 
 ```js
 import ApiClient from 'simple-api-client'
@@ -189,9 +189,9 @@ res = await client.fetch('photos', {
 // 'x-custom-header': 'custom value'
 ```
 
-### SimpleApiClient is a great base class to create a custom api client
+## A great base class to create a custom api client
 
-#### Extend SimpleApiClient to make a custom api client.
+### Extend SimpleApiClient to make a custom api client.
 
 ```js
 import ApiClient from 'simple-api-client'
