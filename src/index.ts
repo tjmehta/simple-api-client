@@ -48,9 +48,11 @@ export type GetRequestInit<
   DefaultJsonType = {}
 > =
   | ((
+      path: string,
       init?: ExtendedRequestInit,
     ) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>)
   | ((
+      path: string,
       init?: ExtendedRequestInit,
     ) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>)
 
@@ -94,7 +96,7 @@ export default class SimpleApiClient<
     }
 
     let extendedInit: ExtendedRequestInit = this.getInit
-      ? await this.getInit(init)
+      ? await this.getInit(path, init)
       : init || {}
     extendedInit = {
       ...this.defaultInit,

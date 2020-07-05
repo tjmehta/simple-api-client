@@ -172,7 +172,7 @@ Fetch options can be dynamically generated for every request by passing in a fun
 ```js
 import ApiClient from 'simple-api-client'
 let client, res
-client = new ApiClient('http://graph.facebook.com', (init) => ({
+client = new ApiClient('http://graph.facebook.com', (path, init) => ({
   ...init,
   headers: {
     authorization: 'token foobar'
@@ -187,7 +187,7 @@ res = await client.fetch('photos', {
 // 'x-custom-header': 'custom value'
 
 // can also be an async function
-client = new ApiClient('http://graph.facebook.com', async (init) => {
+client = new ApiClient('http://graph.facebook.com', async (path, init) => {
   const token = await getToken() // some async function..
   return {
     ...init,

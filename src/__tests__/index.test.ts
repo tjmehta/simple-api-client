@@ -146,12 +146,12 @@ describe('SimpleApiClient', () => {
   })
 
   it('should send and recieve a json (default init as function)', async () => {
-    const url = 'body'
+    const path = 'body'
     const init = {}
     const apiClient = new SimpleApiClient(
       `http://localhost:${PORT}`,
-      (_init) => {
-        expect(url).toBe('body')
+      (_path, _init) => {
+        expect(_path).toBe(path)
         expect(_init).toEqual(
           expect.objectContaining({
             ...init,
@@ -166,7 +166,7 @@ describe('SimpleApiClient', () => {
         }
       },
     )
-    const body = await apiClient.post('body')
+    const body = await apiClient.post(path, init)
     expect(body).toMatchInlineSnapshot(`
       Object {
         "foo": "bar",
@@ -175,12 +175,12 @@ describe('SimpleApiClient', () => {
   })
 
   it('should send and recieve a json (default init as async function)', async () => {
-    const url = 'body'
+    const path = 'body'
     const init = {}
     const apiClient = new SimpleApiClient(
       `http://localhost:${PORT}`,
-      async (_init) => {
-        expect(url).toBe('body')
+      async (_path, _init) => {
+        expect(_path).toBe(path)
         expect(_init).toEqual(
           expect.objectContaining({
             ...init,
@@ -196,7 +196,7 @@ describe('SimpleApiClient', () => {
         }
       },
     )
-    const body = await apiClient.post(url, init)
+    const body = await apiClient.post(path, init)
     expect(body).toMatchInlineSnapshot(`
       Object {
         "foo": "bar",

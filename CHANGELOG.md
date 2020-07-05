@@ -1,3 +1,7 @@
+# v2.2.0
+
+- minor: pass path to getInit
+
 # v2.1.1
 
 - patch: export QueryParamsType
