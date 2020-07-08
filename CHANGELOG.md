@@ -1,6 +1,10 @@
+# v2.3.0
+
+- feature: add response headers to StatusCodeError and InvalidResponseError
+
 # v2.2.0
 
-- minor: pass path to getInit
+- feature: pass path to getInit
 
 # v2.1.1
 
@@ -39,4 +43,4 @@
 # v1.0.0
 
 - breaking: removed support for < node v12
-- minor: added typescript support
+- feature: added typescript support

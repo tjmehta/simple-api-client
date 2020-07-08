@@ -27,7 +27,7 @@ export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, Jso
     json?: JsonType;
     query?: QueryType;
 }
-export declare type GetRequestInit<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> = ((init?: ExtendedRequestInit) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>) | ((init?: ExtendedRequestInit) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>);
+export declare type GetRequestInit<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> = ((path: string, init?: ExtendedRequestInit) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>) | ((path: string, init?: ExtendedRequestInit) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>);
 export default class SimpleApiClient<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> {
     protected readonly host: string;
     protected readonly getInit?: GetRequestInit<DefaultQueryType, DefaultJsonType>;

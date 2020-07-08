@@ -57,7 +57,7 @@ export default class SimpleApiClient {
                 throw new FetchMissingError('fetch is not a function, use setFetch to set a fetch function', { fetch: f });
             }
             let extendedInit = this.getInit
-                ? yield this.getInit(init)
+                ? yield this.getInit(path, init)
                 : init || {};
             extendedInit = Object.assign(Object.assign(Object.assign({}, this.defaultInit), extendedInit), { headers: Object.assign(Object.assign({}, (_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers), extendedInit.headers) });
             const { json, query } = extendedInit, _fetchInit = __rest(extendedInit, ["json", "query"]);

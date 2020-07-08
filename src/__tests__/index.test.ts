@@ -80,7 +80,9 @@ describe('SimpleApiClient', () => {
       await apiClient.post('body', {
         json: circular,
       })
-    }).rejects.toThrow(/cannot stringify/)
+    }).rejects.toMatchInlineSnapshot(
+      `[BodyStringifyError: cannot stringify body]`,
+    )
   })
 
   it('should send and recieve a json', async () => {
@@ -115,20 +117,56 @@ describe('SimpleApiClient', () => {
   it('should send and reject w/ a status code error via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     await expect(async () => {
-      await apiClient.json<{ foo: string }>('body', 201, {
-        method: 'post',
-        json: {
-          foo: 'bar',
-        },
-      })
-    }).rejects.toThrow(StatusCodeError)
+      try {
+        await apiClient.json<{ foo: string }>('body', 201, {
+          method: 'post',
+          json: {
+            foo: 'bar',
+          },
+        })
+      } catch (err) {
+        expect(JSON.parse(JSON.stringify(err))).toMatchInlineSnapshot(`
+          Object {
+            "body": Object {
+              "foo": "bar",
+            },
+            "expectedStatus": 201,
+            "headers": Object {},
+            "init": Object {
+              "json": Object {
+                "foo": "bar",
+              },
+              "method": "post",
+            },
+            "name": "StatusCodeError",
+            "path": "body",
+            "status": 200,
+          }
+        `)
+        throw err
+      }
+    }).rejects.toMatchInlineSnapshot(`[StatusCodeError: unexpected status]`)
   })
 
   it('should send and reject w/ a status code error via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     await expect(async () => {
-      await apiClient.json<{ foo: string }>('notjson', 200)
-    }).rejects.toThrow(InvalidResponseError)
+      try {
+        await apiClient.json<{ foo: string }>('notjson', 200)
+      } catch (err) {
+        expect(JSON.parse(JSON.stringify(err))).toMatchInlineSnapshot(`
+          Object {
+            "body": "not json",
+            "expectedStatus": 200,
+            "headers": Object {},
+            "name": "InvalidResponseError",
+            "path": "notjson",
+            "status": 200,
+          }
+        `)
+        throw err
+      }
+    }).rejects.toMatchInlineSnapshot(`[InvalidResponseError: invalid response]`)
   })
 
   it('should send and recieve a json (default init)', async () => {
@@ -260,7 +298,9 @@ describe('SimpleApiClient', () => {
       const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
       await expect(async () => {
         await apiClient.get('/')
-      }).rejects.toThrow(/fetch is not/)
+      }).rejects.toMatchInlineSnapshot(
+        `[FetchMissingError: fetch is not a function, use setFetch to set a fetch function]`,
+      )
     })
   })
 })
