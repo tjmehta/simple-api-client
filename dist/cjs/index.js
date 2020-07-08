@@ -111,6 +111,7 @@ class SimpleApiClient {
                     throw new StatusCodeError(`unexpected status`, {
                         expectedStatus: _expectedStatus,
                         status: res.status,
+                        headers: res.headers,
                         path,
                         init: _init,
                         body,
@@ -127,6 +128,7 @@ class SimpleApiClient {
                 throw InvalidResponseError.wrap(err, 'invalid response', {
                     expectedStatus: _expectedStatus,
                     status: res.status,
+                    headers: res.headers,
                     path,
                     init: _init,
                     body,

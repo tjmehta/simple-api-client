@@ -11,6 +11,7 @@ export declare class StatusCodeError extends BaseError<{
     init?: ExtendedRequestInit | null;
     expectedStatus: number | RegExp | null | undefined;
     status: number;
+    headers: Headers;
     body?: string | BodyType;
 }> {
 }
@@ -19,6 +20,7 @@ export declare class InvalidResponseError extends BaseError<{
     init?: ExtendedRequestInit | null;
     expectedStatus: number | RegExp | null | undefined;
     status: number;
+    headers: Headers;
     body?: string | BodyType;
 }> {
 }

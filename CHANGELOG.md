@@ -1,3 +1,7 @@
+# v2.3.1
+
+- fix: commit dist folder
+
 # v2.3.0
 
 - feature: add response headers to StatusCodeError and InvalidResponseError
