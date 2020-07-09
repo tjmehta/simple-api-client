@@ -1,3 +1,9 @@
+# v2.4
+
+- feature: add `text` method for text responses
+- feature: add `arrayBuffer` method for ArrayBuffer responses
+- feature: add `blob` method for Blob responses
+
 # v2.3.1
 
 - fix: commit dist folder

@@ -21,7 +21,7 @@ export class StatusCodeError extends BaseError<{
   expectedStatus: number | RegExp | null | undefined
   status: number
   headers: Headers
-  body?: string | BodyType
+  body?: any
 }> {}
 
 export class InvalidResponseError extends BaseError<{
@@ -30,7 +30,7 @@ export class InvalidResponseError extends BaseError<{
   expectedStatus: number | RegExp | null | undefined
   status: number
   headers: Headers
-  body?: string | BodyType
+  body?: any
 }> {}
 
 /*
@@ -51,11 +51,11 @@ export type GetRequestInit<
 > =
   | ((
       path: string,
-      init?: ExtendedRequestInit,
+      init?: ExtendedRequestInit | null | undefined,
     ) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>)
   | ((
       path: string,
-      init?: ExtendedRequestInit,
+      init?: ExtendedRequestInit | null | undefined,
     ) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>)
 
 /*
@@ -88,7 +88,7 @@ export default class SimpleApiClient<
 
   async fetch<QueryType extends QueryParamsType, JsonType = {}>(
     path: string,
-    init?: ExtendedRequestInit<QueryType, JsonType>,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
   ): Promise<Response> {
     if (typeof f !== 'function') {
       throw new FetchMissingError(
@@ -136,7 +136,205 @@ export default class SimpleApiClient<
     )
   }
 
-  // convenience fetch method for json
+  // convenience fetch method for text
+  async body<Body = any, JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    expectedStatus: number | RegExp | null | undefined,
+    init: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
+    resToBody: (
+      res: Response,
+      opts: {
+        path: string
+        expectedStatus: number | RegExp | null | undefined
+        init: ExtendedRequestInit<QueryType, JsonType> | null | undefined
+      },
+    ) => Promise<Body>,
+  ): Promise<Body> {
+    // check arguments
+    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make request
+    const res = await this.fetch<QueryType, JsonType>(path, _init)
+
+    // assert expected status code was received
+    if (
+      expectedStatus != null &&
+      (expectedStatus !== res.status ||
+        (isRegExp(expectedStatus) &&
+          !expectedStatus.test(res.status.toString())))
+    ) {
+      let body
+      try {
+        body = await resToBody(res, { path, expectedStatus, init })
+      } finally {
+        throw new StatusCodeError(`unexpected status`, {
+          expectedStatus: _expectedStatus,
+          status: res.status,
+          headers: res.headers,
+          path,
+          init: _init,
+          body,
+        })
+      }
+    }
+
+    // get response body as a json
+    let body
+    try {
+      body = await resToBody(res, { path, expectedStatus, init })
+    } catch (err) {
+      throw InvalidResponseError.wrap(err, 'invalid response', {
+        expectedStatus: _expectedStatus,
+        status: res.status,
+        headers: res.headers,
+        path,
+        init: _init,
+        body,
+      })
+    }
+
+    return body
+  }
+
+  // convenience fetch methods for various response types
+  async arrayBuffer<JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
+  ) {
+    // check arguments
+    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make request
+    return await this.body<ArrayBuffer, JsonType, QueryType>(
+      path,
+      _expectedStatus,
+      {
+        ..._init,
+        headers: {
+          accept: 'application/octet-stream',
+          ..._init?.headers,
+        },
+      },
+      async (res, { path, init, expectedStatus }) => {
+        let body
+        try {
+          body = await res.arrayBuffer()
+        } catch (err) {
+          throw InvalidResponseError.wrap(err, 'invalid response', {
+            expectedStatus,
+            status: res.status,
+            headers: res.headers,
+            path,
+            init,
+            body,
+          })
+        }
+
+        return body
+      },
+    )
+  }
+  async blob<JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
+  ) {
+    // check arguments
+    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make request
+    return await this.body<Blob, JsonType, QueryType>(
+      path,
+      _expectedStatus,
+      {
+        ..._init,
+        headers: {
+          accept: 'application/octet-stream',
+          ..._init?.headers,
+        },
+      },
+      async (res, { path, init, expectedStatus }) => {
+        let body
+        try {
+          body = await res.blob()
+        } catch (err) {
+          throw InvalidResponseError.wrap(err, 'invalid response', {
+            expectedStatus,
+            status: res.status,
+            headers: res.headers,
+            path,
+            init,
+            body,
+          })
+        }
+
+        return body
+      },
+    )
+  }
+  async text<JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    expectedStatus?:
+      | number
+      | RegExp
+      | ExtendedRequestInit<QueryType, JsonType>
+      | null,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null,
+  ) {
+    // check arguments
+    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
+      expectedStatus,
+      init,
+    )
+
+    // make request
+    return await this.body<string, JsonType, QueryType>(
+      path,
+      _expectedStatus,
+      {
+        ..._init,
+        headers: {
+          accept: 'text/plain; charset=utf-8',
+          ..._init?.headers,
+        },
+      },
+      async (res, { path, init, expectedStatus }) => {
+        let body
+        try {
+          body = await res.text()
+        } catch (err) {
+          throw InvalidResponseError.wrap(err, 'invalid response', {
+            expectedStatus,
+            status: res.status,
+            headers: res.headers,
+            path,
+            init,
+            body,
+          })
+        }
+
+        return body
+      },
+    )
+  }
   async json<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
     expectedStatus?:
@@ -153,54 +351,35 @@ export default class SimpleApiClient<
     )
 
     // make request
-    const res = await this.fetch<QueryType, JsonType>(path, {
-      ..._init,
-      headers: {
-        accept: 'application/json',
-        ..._init?.headers,
+    return await this.body<string, JsonType, QueryType>(
+      path,
+      _expectedStatus,
+      {
+        ..._init,
+        headers: {
+          accept: 'application/json',
+          ..._init?.headers,
+        },
       },
-    })
+      async (res, { path, init, expectedStatus }) => {
+        let body
+        try {
+          body = await res.text()
+          body = JSON.parse(body)
+        } catch (err) {
+          throw InvalidResponseError.wrap(err, 'invalid response', {
+            expectedStatus,
+            status: res.status,
+            headers: res.headers,
+            path,
+            init,
+            body,
+          })
+        }
 
-    // assert expected status code was received
-    if (
-      expectedStatus != null &&
-      (expectedStatus !== res.status ||
-        (isRegExp(expectedStatus) &&
-          !expectedStatus.test(res.status.toString())))
-    ) {
-      let body: string | BodyType | undefined
-      try {
-        body = await res.text()
-        body = JSON.parse(body)
-      } finally {
-        throw new StatusCodeError(`unexpected status`, {
-          expectedStatus: _expectedStatus,
-          status: res.status,
-          headers: res.headers,
-          path,
-          init: _init,
-          body,
-        })
-      }
-    }
-
-    // get response body as a json
-    let body
-    try {
-      body = await res.text()
-      body = JSON.parse(body)
-    } catch (err) {
-      throw InvalidResponseError.wrap(err, 'invalid response', {
-        expectedStatus: _expectedStatus,
-        status: res.status,
-        headers: res.headers,
-        path,
-        init: _init,
-        body,
-      })
-    }
-
-    return body
+        return body
+      },
+    )
   }
 
   // response bodyless methods

@@ -106,11 +106,17 @@ const res = await client.fetch('photos', {
 // request headers "accept" and "content-type" will be defaulted to "application/json"
 ```
 
-## Syntactic sugar for recieving json responses
+/\***\*TODO
+/\*\***TODO
+/\***\*TODO
+/\*\***TODO
+/\*\*\*\*TODO Syntactic sugar for recieving **\_\_** responses
+
+## Syntactic sugar for recieving json, text, array-buffer, and blob responses
 
 ### Easily receive json data from an api
 
-SimpleApiClient's implements a `json` method. The `json` method works similarly to fetch but assumes responses from the server are json. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as json a `InvalidResponseError` will be thrown. Otherwise, json will resolve the response's body as a json object. See the example below.
+SimpleApiClient's implements a `json` method. The `json` method works similarly to fetch but assumes responses from the server are json. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. The third argument is fetch options. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as json a `InvalidResponseError` will be thrown. Otherwise, `json` will resolve the response's body as a json object. See the example below.
 
 ```js
 import ApiClient, {
@@ -118,15 +124,16 @@ import ApiClient, {
   InvalidResponseError,
 } from 'simple-api-client'
 
-const client = new ApiClient('http://graph.facebook.com', {
-  headers: { authorization: 'token foobar' },
-})
+const client = new ApiClient('http://graph.facebook.com')
 
 try {
   // expected status code is the second argument and optional, can also be a regexp like /200|201/
   // json will assume you are fetching json from your api, and will verify the status code
   // expected status codes are optional and can be provided as a number or regexp
-  const json = await client.json('photos', 200)
+  const json = await client.json('photos', 200, {
+    method: 'post',
+    json: { foo: 'val' },
+  })
 } catch (err) {
   if (err instanceof StatusCodeError) {
     console.log(err.name) // 'StatusCodeError'
@@ -139,6 +146,111 @@ try {
     console.log(err.status) // 200
     console.log(err.path) // 'photos'
     console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
+    console.log(err.body) // 'some non-json body' // the body as text
+    console.log(err.source) // <original json parse error>
+  }
+}
+```
+
+### Easily receive text data from an api
+
+SimpleApiClient's implements a `text` method. The `text` method works similarly to fetch but assumes responses from the server are `text/plain`. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as text a `InvalidResponseError` will be thrown. Otherwise, `text` will resolve the response's body as a string. See the example below.
+
+```js
+import ApiClient, {
+  StatusCodeError,
+  InvalidResponseError,
+} from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com')
+
+try {
+  // expected status code is the second argument and optional, can also be a regexp like /200|201/
+  // json will assume you are fetching json from your api, and will verify the status code
+  // expected status codes are optional and can be provided as a number or regexp
+  const text = await client.text('photos', 200)
+} catch (err) {
+  if (err instanceof StatusCodeError) {
+    console.log(err.name) // 'StatusCodeError'
+    console.log(err.status) // 500
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get', headers: { accept: 'text/plain; charset=utf-8', content-type: 'application/json' }}
+    console.log(err.body) // { status: 500, message: 'something bad happened' } or '500 error: something bad happened' // the body as json or text
+  } else if (err instanceof InvalidResponseError) {
+    console.log(err.name) // 'InvalidResponseError'
+    console.log(err.status) // 200
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get', headers: { accept: 'text/plain; charset=utf-8', content-type: 'application/json' }}
+    console.log(err.body) // 'some non-json body' // the body as text
+    console.log(err.source) // <original json parse error>
+  }
+}
+```
+
+### Easily receive array-buffer data from an api
+
+SimpleApiClient's implements a `arrayBuffer` method. The `arrayBuffer` method works similarly to fetch but assumes responses from the server are `application/octet-stream`. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as array-buffer a `InvalidResponseError` will be thrown. Otherwise, `arrayBuffer` will resolve the response's body as an array-buffer. See the example below.
+
+```js
+import ApiClient, {
+  StatusCodeError,
+  InvalidResponseError,
+} from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com')
+
+try {
+  // expected status code is the second argument and optional, can also be a regexp like /200|201/
+  // json will assume you are fetching json from your api, and will verify the status code
+  // expected status codes are optional and can be provided as a number or regexp
+  const arrayBuffer = await client.arrayBuffer('photos', 200)
+} catch (err) {
+  if (err instanceof StatusCodeError) {
+    console.log(err.name) // 'StatusCodeError'
+    console.log(err.status) // 500
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get', headers: { accept: 'application/octet-stream', content-type: 'application/json' }}
+    console.log(err.body) // { status: 500, message: 'something bad happened' } or '500 error: something bad happened' // the body as json or text
+  } else if (err instanceof InvalidResponseError) {
+    console.log(err.name) // 'InvalidResponseError'
+    console.log(err.status) // 200
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get', headers: { accept: 'application/octet-stream', content-type: 'application/json' }}
+    console.log(err.body) // 'some non-json body' // the body as text
+    console.log(err.source) // <original json parse error>
+  }
+}
+```
+
+### Easily receive blob data from an api
+
+SimpleApiClient's implements a `blob` method. The `blob` method works similarly to fetch but assumes responses from the server are `application/octet-stream`. It also has an optional second argument, `expectedStatus` which can be specified the expected successful status code(s) as a number or regexp. If the response's status code does not match the expected code, a `StatusCodeError` will be thrown. If the response cannot be parsed as blob a `InvalidResponseError` will be thrown. Otherwise, `blob` will resolve the response's body as a blob. See the example below.
+
+```js
+import ApiClient, {
+  StatusCodeError,
+  InvalidResponseError,
+} from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com')
+
+try {
+  // expected status code is the second argument and optional, can also be a regexp like /200|201/
+  // json will assume you are fetching json from your api, and will verify the status code
+  // expected status codes are optional and can be provided as a number or regexp
+  const blob = await client.blob('photos', 200)
+} catch (err) {
+  if (err instanceof StatusCodeError) {
+    console.log(err.name) // 'StatusCodeError'
+    console.log(err.status) // 500
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get', headers: { accept: 'application/octet-stream', content-type: 'application/json' }}
+    console.log(err.body) // { status: 500, message: 'something bad happened' } or '500 error: something bad happened' // the body as json or text
+  } else if (err instanceof InvalidResponseError) {
+    console.log(err.name) // 'InvalidResponseError'
+    console.log(err.status) // 200
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'get', headers: { accept: 'application/octet-stream', content-type: 'application/json' }}
     console.log(err.body) // 'some non-json body' // the body as text
     console.log(err.source) // <original json parse error>
   }

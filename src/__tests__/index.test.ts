@@ -14,9 +14,9 @@ describe('SimpleApiClient', () => {
   let server: Server | undefined
   beforeEach(async () => {
     server = createServer((req, res) => {
-      if (req.url === '/notjson') {
+      if (req.url === '/text') {
         res.statusCode = 200
-        res.end('not json')
+        res.end('text body response')
       } else if (req.url === '/body') {
         res.statusCode = 200
         req.pipe(res)
@@ -99,6 +99,56 @@ describe('SimpleApiClient', () => {
     `)
   })
 
+  it('should recieve a text via text method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const text = await apiClient.text('text', 200)
+    expect(text).toMatchInlineSnapshot(`"text body response"`)
+  })
+
+  it('should recieve a arrayBuffer via arrayBuffer method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const arrayBuffer = await apiClient.arrayBuffer('text', 200)
+    expect(arrayBuffer).toMatchInlineSnapshot(`ArrayBuffer []`)
+    const blob = new Blob([new Uint8Array(arrayBuffer)])
+    const text = await blobToString(blob)
+    expect(text).toMatchInlineSnapshot(`"text body response"`)
+  })
+
+  it('should recieve a blob via blob method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const blob = await apiClient.blob('text', 200)
+    const text = await blobToString(blob)
+    expect(text).toMatchInlineSnapshot(`"text body response"`)
+    expect(blob).toMatchInlineSnapshot(`
+      Blob {
+        Symbol(type): "",
+        Symbol(buffer): Object {
+          "data": Array [
+            116,
+            101,
+            120,
+            116,
+            32,
+            98,
+            111,
+            100,
+            121,
+            32,
+            114,
+            101,
+            115,
+            112,
+            111,
+            110,
+            115,
+            101,
+          ],
+          "type": "Buffer",
+        },
+      }
+    `)
+  })
+
   it('should send and recieve a json via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const json = await apiClient.json<{ foo: string }>('body', 200, {
@@ -133,6 +183,9 @@ describe('SimpleApiClient', () => {
             "expectedStatus": 201,
             "headers": Object {},
             "init": Object {
+              "headers": Object {
+                "accept": "application/json",
+              },
               "json": Object {
                 "foo": "bar",
               },
@@ -152,15 +205,19 @@ describe('SimpleApiClient', () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     await expect(async () => {
       try {
-        await apiClient.json<{ foo: string }>('notjson', 200)
+        await apiClient.json<{ foo: string }>('text', 200)
       } catch (err) {
         expect(JSON.parse(JSON.stringify(err))).toMatchInlineSnapshot(`
           Object {
-            "body": "not json",
             "expectedStatus": 200,
             "headers": Object {},
+            "init": Object {
+              "headers": Object {
+                "accept": "application/json",
+              },
+            },
             "name": "InvalidResponseError",
-            "path": "notjson",
+            "path": "text",
             "status": 200,
           }
         `)
@@ -304,3 +361,19 @@ describe('SimpleApiClient', () => {
     })
   })
 })
+
+async function blobToString(blob: Blob): Promise<string> {
+  if (blob.text) return blob.text()
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    // This fires after the blob has been read/loaded.
+    reader.addEventListener('loadend', (e) => {
+      // @ts-ignore
+      const text = e.srcElement.result
+      resolve(text)
+    })
+
+    // Start reading the blob as text.
+    reader.readAsText(blob)
+  })
+}

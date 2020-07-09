@@ -90,13 +90,13 @@ class SimpleApiClient {
             }));
         });
     }
-    // convenience fetch method for json
-    json(path, expectedStatus, init) {
+    // convenience fetch method for text
+    body(path, expectedStatus, init, resToBody) {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
             let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make request
-            const res = yield this.fetch(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers) }));
+            const res = yield this.fetch(path, _init);
             // assert expected status code was received
             if (expectedStatus != null &&
                 (expectedStatus !== res.status ||
@@ -104,8 +104,7 @@ class SimpleApiClient {
                         !expectedStatus.test(res.status.toString())))) {
                 let body;
                 try {
-                    body = yield res.text();
-                    body = JSON.parse(body);
+                    body = yield resToBody(res, { path, expectedStatus, init });
                 }
                 finally {
                     throw new StatusCodeError(`unexpected status`, {
@@ -121,8 +120,7 @@ class SimpleApiClient {
             // get response body as a json
             let body;
             try {
-                body = yield res.text();
-                body = JSON.parse(body);
+                body = yield resToBody(res, { path, expectedStatus, init });
             }
             catch (err) {
                 throw InvalidResponseError.wrap(err, 'invalid response', {
@@ -135,6 +133,104 @@ class SimpleApiClient {
                 });
             }
             return body;
+        });
+    }
+    // convenience fetch methods for various response types
+    arrayBuffer(path, expectedStatus, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check arguments
+            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make request
+            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
+                let body;
+                try {
+                    body = yield res.arrayBuffer();
+                }
+                catch (err) {
+                    throw InvalidResponseError.wrap(err, 'invalid response', {
+                        expectedStatus,
+                        status: res.status,
+                        headers: res.headers,
+                        path,
+                        init,
+                        body,
+                    });
+                }
+                return body;
+            }));
+        });
+    }
+    blob(path, expectedStatus, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check arguments
+            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make request
+            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
+                let body;
+                try {
+                    body = yield res.blob();
+                }
+                catch (err) {
+                    throw InvalidResponseError.wrap(err, 'invalid response', {
+                        expectedStatus,
+                        status: res.status,
+                        headers: res.headers,
+                        path,
+                        init,
+                        body,
+                    });
+                }
+                return body;
+            }));
+        });
+    }
+    text(path, expectedStatus, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check arguments
+            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make request
+            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
+                let body;
+                try {
+                    body = yield res.text();
+                }
+                catch (err) {
+                    throw InvalidResponseError.wrap(err, 'invalid response', {
+                        expectedStatus,
+                        status: res.status,
+                        headers: res.headers,
+                        path,
+                        init,
+                        body,
+                    });
+                }
+                return body;
+            }));
+        });
+    }
+    json(path, expectedStatus, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check arguments
+            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            // make request
+            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
+                let body;
+                try {
+                    body = yield res.text();
+                    body = JSON.parse(body);
+                }
+                catch (err) {
+                    throw InvalidResponseError.wrap(err, 'invalid response', {
+                        expectedStatus,
+                        status: res.status,
+                        headers: res.headers,
+                        path,
+                        init,
+                        body,
+                    });
+                }
+                return body;
+            }));
         });
     }
     // response bodyless methods
