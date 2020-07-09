@@ -1,4 +1,4 @@
-# v2.4
+# v2.4.0
 
 - feature: add `text` method for text responses
 - feature: add `arrayBuffer` method for ArrayBuffer responses
