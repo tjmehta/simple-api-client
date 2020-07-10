@@ -106,12 +106,6 @@ const res = await client.fetch('photos', {
 // request headers "accept" and "content-type" will be defaulted to "application/json"
 ```
 
-/\***\*TODO
-/\*\***TODO
-/\***\*TODO
-/\*\***TODO
-/\*\*\*\*TODO Syntactic sugar for recieving **\_\_** responses
-
 ## Syntactic sugar for recieving json, text, array-buffer, and blob responses
 
 ### Easily receive json data from an api

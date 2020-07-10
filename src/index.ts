@@ -4,6 +4,8 @@ import queryToString, { QueryParamsType } from './queryToString'
 import BaseError from 'baseerr'
 import isRegExp from 'is-regexp'
 
+const isNumber = (n: any): boolean => typeof n === 'number'
+
 let f = typeof fetch === 'function' ? fetch : undefined
 
 export function setFetch(_fetch: typeof fetch) {
@@ -23,11 +25,9 @@ export class StatusCodeError extends BaseError<{
   headers: Headers
   body?: any
 }> {}
-
 export class InvalidResponseError extends BaseError<{
   path: string
   init?: ExtendedRequestInit | null
-  expectedStatus: number | RegExp | null | undefined
   status: number
   headers: Headers
   body?: any
@@ -41,10 +41,10 @@ export interface ExtendedRequestInit<
   QueryType extends QueryParamsType = {},
   JsonType = {}
 > extends RequestInit {
-  json?: JsonType
-  query?: QueryType
+  json?: JsonType | null | undefined
+  query?: QueryType | null | undefined
+  expectedStatus?: number | RegExp | null | undefined
 }
-
 export type GetRequestInit<
   DefaultQueryType extends QueryParamsType = {},
   DefaultJsonType = {}
@@ -57,6 +57,11 @@ export type GetRequestInit<
       path: string,
       init?: ExtendedRequestInit | null | undefined,
     ) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>)
+export type ToBody<Body = any> = (
+  res: Response,
+  path: string,
+  init: RequestInit,
+) => Promise<Body>
 
 /*
  * SimpleApiClient Class
@@ -86,10 +91,10 @@ export default class SimpleApiClient<
     }
   }
 
-  async fetch<QueryType extends QueryParamsType, JsonType = {}>(
+  private async _fetch<QueryType extends QueryParamsType, JsonType = {}>(
     path: string,
     init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
-  ): Promise<Response> {
+  ): Promise<[Error | null, Response | null, string, RequestInit]> {
     if (typeof f !== 'function') {
       throw new FetchMissingError(
         'fetch is not a function, use setFetch to set a fetch function',
@@ -108,7 +113,7 @@ export default class SimpleApiClient<
         ...extendedInit.headers,
       },
     }
-    const { json, query, ..._fetchInit } = extendedInit
+    const { expectedStatus, json, query, ..._fetchInit } = extendedInit
     const fetchInit: RequestInit = _fetchInit
     let fetchPath = `${this.host}/${path.replace(/^\//, '')}`
 
@@ -128,75 +133,78 @@ export default class SimpleApiClient<
       }
     }
 
-    return f(fetchPath, fetchInit).catch((err) =>
-      NetworkError.wrapAndThrow(err, 'network error', {
+    let res
+    try {
+      res = await f(fetchPath, fetchInit)
+    } catch (err) {
+      const e = NetworkError.wrap(err, 'network error', {
         path,
         init,
-      }),
-    )
-  }
+      })
+      return [e, null, fetchPath, fetchInit]
+    }
 
-  // convenience fetch method for text
-  async body<Body = any, JsonType = {}, QueryType extends QueryParamsType = {}>(
-    path: string,
-    expectedStatus: number | RegExp | null | undefined,
-    init: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
-    resToBody: (
-      res: Response,
-      opts: {
-        path: string
-        expectedStatus: number | RegExp | null | undefined
-        init: ExtendedRequestInit<QueryType, JsonType> | null | undefined
-      },
-    ) => Promise<Body>,
-  ): Promise<Body> {
-    // check arguments
-    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
-      expectedStatus,
-      init,
-    )
-
-    // make request
-    const res = await this.fetch<QueryType, JsonType>(path, _init)
-
-    // assert expected status code was received
     if (
       expectedStatus != null &&
       (expectedStatus !== res.status ||
         (isRegExp(expectedStatus) &&
           !expectedStatus.test(res.status.toString())))
     ) {
-      let body
-      try {
-        body = await resToBody(res, { path, expectedStatus, init })
-      } finally {
-        throw new StatusCodeError(`unexpected status`, {
-          expectedStatus: _expectedStatus,
-          status: res.status,
-          headers: res.headers,
-          path,
-          init: _init,
-          body,
-        })
-      }
-    }
-
-    // get response body as a json
-    let body
-    try {
-      body = await resToBody(res, { path, expectedStatus, init })
-    } catch (err) {
-      throw InvalidResponseError.wrap(err, 'invalid response', {
-        expectedStatus: _expectedStatus,
+      const e = new StatusCodeError(`unexpected status`, {
+        expectedStatus,
         status: res.status,
         headers: res.headers,
         path,
-        init: _init,
-        body,
+        init: _fetchInit,
       })
+      return [e, res, fetchPath, fetchInit]
     }
 
-    return body
+    return [null, res, fetchPath, fetchInit]
+  }
+
+  private async fetch<QueryType extends QueryParamsType, JsonType = {}>(
+    path: string,
+    init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
+  ): Promise<Response> {
+    const [err, res] = await this._fetch(path, init)
+    if (err) throw err
+    return res as Response
+  }
+
+  // convenience fetch method for text
+  async body<Body = any, JsonType = {}, QueryType extends QueryParamsType = {}>(
+    path: string,
+    init: ExtendedRequestInit<QueryType, JsonType> & {
+      toBody: ToBody<Body>
+    },
+  ): Promise<Body> {
+    // check arguments
+    const { toBody, ..._init } = init
+    const [err, res, fetchPath, fetchInit] = await this._fetch(path, _init)
+    if (err) {
+      if (err instanceof StatusCodeError) {
+        try {
+          // @ts-ignore
+          err.body = await toBody(res, fetchPath, fetchInit)
+        } finally {
+          throw err
+        }
+      }
+      throw err
+    }
+
+    const resp = res as Response
+    try {
+      return await toBody(resp, fetchPath, fetchInit)
+    } catch (err) {
+      throw InvalidResponseError.wrap(err, 'invalid response', {
+        status: resp.status,
+        headers: resp.headers,
+        path,
+        init: fetchInit,
+      })
+    }
   }
 
   // convenience fetch methods for various response types
@@ -210,40 +218,20 @@ export default class SimpleApiClient<
     init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
     // check arguments
-    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
-      expectedStatus,
-      init,
-    )
+    const _init =
+      isNumber(expectedStatus) || isRegExp(expectedStatus)
+        ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : init
 
     // make request
-    return await this.body<ArrayBuffer, JsonType, QueryType>(
-      path,
-      _expectedStatus,
-      {
-        ..._init,
-        headers: {
-          accept: 'application/octet-stream',
-          ..._init?.headers,
-        },
+    return await this.body<ArrayBuffer, JsonType, QueryType>(path, {
+      ..._init,
+      headers: {
+        accept: 'application/octet-stream',
+        ..._init?.headers,
       },
-      async (res, { path, init, expectedStatus }) => {
-        let body
-        try {
-          body = await res.arrayBuffer()
-        } catch (err) {
-          throw InvalidResponseError.wrap(err, 'invalid response', {
-            expectedStatus,
-            status: res.status,
-            headers: res.headers,
-            path,
-            init,
-            body,
-          })
-        }
-
-        return body
-      },
-    )
+      toBody: (res) => res.arrayBuffer(),
+    })
   }
   async blob<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
@@ -255,40 +243,20 @@ export default class SimpleApiClient<
     init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
     // check arguments
-    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
-      expectedStatus,
-      init,
-    )
+    const _init =
+      isNumber(expectedStatus) || isRegExp(expectedStatus)
+        ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : init
 
     // make request
-    return await this.body<Blob, JsonType, QueryType>(
-      path,
-      _expectedStatus,
-      {
-        ..._init,
-        headers: {
-          accept: 'application/octet-stream',
-          ..._init?.headers,
-        },
+    return await this.body<Blob, JsonType, QueryType>(path, {
+      ..._init,
+      headers: {
+        accept: 'application/octet-stream',
+        ..._init?.headers,
       },
-      async (res, { path, init, expectedStatus }) => {
-        let body
-        try {
-          body = await res.blob()
-        } catch (err) {
-          throw InvalidResponseError.wrap(err, 'invalid response', {
-            expectedStatus,
-            status: res.status,
-            headers: res.headers,
-            path,
-            init,
-            body,
-          })
-        }
-
-        return body
-      },
-    )
+      toBody: (res) => res.blob(),
+    })
   }
   async text<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
@@ -300,40 +268,20 @@ export default class SimpleApiClient<
     init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
     // check arguments
-    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
-      expectedStatus,
-      init,
-    )
+    const _init =
+      isNumber(expectedStatus) || isRegExp(expectedStatus)
+        ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : init
 
     // make request
-    return await this.body<string, JsonType, QueryType>(
-      path,
-      _expectedStatus,
-      {
-        ..._init,
-        headers: {
-          accept: 'text/plain; charset=utf-8',
-          ..._init?.headers,
-        },
+    return await this.body<string, JsonType, QueryType>(path, {
+      ..._init,
+      headers: {
+        accept: 'text/plain; charset=utf-8',
+        ..._init?.headers,
       },
-      async (res, { path, init, expectedStatus }) => {
-        let body
-        try {
-          body = await res.text()
-        } catch (err) {
-          throw InvalidResponseError.wrap(err, 'invalid response', {
-            expectedStatus,
-            status: res.status,
-            headers: res.headers,
-            path,
-            init,
-            body,
-          })
-        }
-
-        return body
-      },
-    )
+      toBody: (res) => res.text(),
+    })
   }
   async json<JsonType = {}, QueryType extends QueryParamsType = {}>(
     path: string,
@@ -345,41 +293,20 @@ export default class SimpleApiClient<
     init?: ExtendedRequestInit<QueryType, JsonType> | null,
   ) {
     // check arguments
-    let [_expectedStatus, _init] = getMethodArgs<JsonType, QueryType>(
-      expectedStatus,
-      init,
-    )
+    const _init =
+      isNumber(expectedStatus) || isRegExp(expectedStatus)
+        ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : init
 
     // make request
-    return await this.body<string, JsonType, QueryType>(
-      path,
-      _expectedStatus,
-      {
-        ..._init,
-        headers: {
-          accept: 'application/json',
-          ..._init?.headers,
-        },
+    return await this.body<string, JsonType, QueryType>(path, {
+      ..._init,
+      headers: {
+        accept: 'application/json',
+        ..._init?.headers,
       },
-      async (res, { path, init, expectedStatus }) => {
-        let body
-        try {
-          body = await res.text()
-          body = JSON.parse(body)
-        } catch (err) {
-          throw InvalidResponseError.wrap(err, 'invalid response', {
-            expectedStatus,
-            status: res.status,
-            headers: res.headers,
-            path,
-            init,
-            body,
-          })
-        }
-
-        return body
-      },
-    )
+      toBody: (res) => res.json(),
+    })
   }
 
   // response bodyless methods

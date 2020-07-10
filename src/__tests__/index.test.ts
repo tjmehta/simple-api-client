@@ -183,11 +183,10 @@ describe('SimpleApiClient', () => {
             "expectedStatus": 201,
             "headers": Object {},
             "init": Object {
+              "body": "{\\"foo\\":\\"bar\\"}",
               "headers": Object {
                 "accept": "application/json",
-              },
-              "json": Object {
-                "foo": "bar",
+                "content-type": "application/json",
               },
               "method": "post",
             },
@@ -201,7 +200,7 @@ describe('SimpleApiClient', () => {
     }).rejects.toMatchInlineSnapshot(`[StatusCodeError: unexpected status]`)
   })
 
-  it('should send and reject w/ a status code error via json method', async () => {
+  it('should send and reject w/ a invalid response error via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     await expect(async () => {
       try {
@@ -209,7 +208,6 @@ describe('SimpleApiClient', () => {
       } catch (err) {
         expect(JSON.parse(JSON.stringify(err))).toMatchInlineSnapshot(`
           Object {
-            "expectedStatus": 200,
             "headers": Object {},
             "init": Object {
               "headers": Object {

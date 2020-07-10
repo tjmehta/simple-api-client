@@ -1,3 +1,7 @@
+# v2.4.1
+
+- fix: errors have "init" set with options passed to fetch
+
 # v2.4.0
 
 - feature: add `text` method for text responses

@@ -28,6 +28,7 @@ const bodyToString_1 = __importDefault(require("./bodyToString"));
 const queryToString_1 = __importDefault(require("./queryToString"));
 const baseerr_1 = __importDefault(require("baseerr"));
 const is_regexp_1 = __importDefault(require("is-regexp"));
+const isNumber = (n) => typeof n === 'number';
 let f = typeof fetch === 'function' ? fetch : undefined;
 function setFetch(_fetch) {
     f = _fetch;
@@ -61,7 +62,7 @@ class SimpleApiClient {
             this.defaultInit = getInit;
         }
     }
-    fetch(path, init) {
+    _fetch(path, init) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
             if (typeof f !== 'function') {
@@ -71,7 +72,7 @@ class SimpleApiClient {
                 ? yield this.getInit(path, init)
                 : init || {};
             extendedInit = Object.assign(Object.assign(Object.assign({}, this.defaultInit), extendedInit), { headers: Object.assign(Object.assign({}, (_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers), extendedInit.headers) });
-            const { json, query } = extendedInit, _fetchInit = __rest(extendedInit, ["json", "query"]);
+            const { expectedStatus, json, query } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query"]);
             const fetchInit = _fetchInit;
             let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
             if (json != null) {
@@ -84,153 +85,108 @@ class SimpleApiClient {
                     fetchPath = `${fetchPath}?${queryString}`;
                 }
             }
-            return f(fetchPath, fetchInit).catch((err) => NetworkError.wrapAndThrow(err, 'network error', {
-                path,
-                init,
-            }));
-        });
-    }
-    // convenience fetch method for text
-    body(path, expectedStatus, init, resToBody) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make request
-            const res = yield this.fetch(path, _init);
-            // assert expected status code was received
+            let res;
+            try {
+                res = yield f(fetchPath, fetchInit);
+            }
+            catch (err) {
+                const e = NetworkError.wrap(err, 'network error', {
+                    path,
+                    init,
+                });
+                return [e, null, fetchPath, fetchInit];
+            }
             if (expectedStatus != null &&
                 (expectedStatus !== res.status ||
                     (is_regexp_1.default(expectedStatus) &&
                         !expectedStatus.test(res.status.toString())))) {
-                let body;
-                try {
-                    body = yield resToBody(res, { path, expectedStatus, init });
-                }
-                finally {
-                    throw new StatusCodeError(`unexpected status`, {
-                        expectedStatus: _expectedStatus,
-                        status: res.status,
-                        headers: res.headers,
-                        path,
-                        init: _init,
-                        body,
-                    });
-                }
-            }
-            // get response body as a json
-            let body;
-            try {
-                body = yield resToBody(res, { path, expectedStatus, init });
-            }
-            catch (err) {
-                throw InvalidResponseError.wrap(err, 'invalid response', {
-                    expectedStatus: _expectedStatus,
+                const e = new StatusCodeError(`unexpected status`, {
+                    expectedStatus,
                     status: res.status,
                     headers: res.headers,
                     path,
-                    init: _init,
-                    body,
+                    init: _fetchInit,
+                });
+                return [e, res, fetchPath, fetchInit];
+            }
+            return [null, res, fetchPath, fetchInit];
+        });
+    }
+    fetch(path, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const [err, res] = yield this._fetch(path, init);
+            if (err)
+                throw err;
+            return res;
+        });
+    }
+    // convenience fetch method for text
+    body(path, init) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check arguments
+            const { toBody } = init, _init = __rest(init, ["toBody"]);
+            const [err, res, fetchPath, fetchInit] = yield this._fetch(path, _init);
+            if (err) {
+                if (err instanceof StatusCodeError) {
+                    try {
+                        // @ts-ignore
+                        err.body = yield toBody(res, fetchPath, fetchInit);
+                    }
+                    finally {
+                        throw err;
+                    }
+                }
+                throw err;
+            }
+            const resp = res;
+            try {
+                return yield toBody(resp, fetchPath, fetchInit);
+            }
+            catch (err) {
+                throw InvalidResponseError.wrap(err, 'invalid response', {
+                    status: resp.status,
+                    headers: resp.headers,
+                    path,
+                    init: fetchInit,
                 });
             }
-            return body;
         });
     }
     // convenience fetch methods for various response types
     arrayBuffer(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
-            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
             // make request
-            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
-                let body;
-                try {
-                    body = yield res.arrayBuffer();
-                }
-                catch (err) {
-                    throw InvalidResponseError.wrap(err, 'invalid response', {
-                        expectedStatus,
-                        status: res.status,
-                        headers: res.headers,
-                        path,
-                        init,
-                        body,
-                    });
-                }
-                return body;
-            }));
+            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.arrayBuffer() }));
         });
     }
     blob(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
-            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
             // make request
-            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
-                let body;
-                try {
-                    body = yield res.blob();
-                }
-                catch (err) {
-                    throw InvalidResponseError.wrap(err, 'invalid response', {
-                        expectedStatus,
-                        status: res.status,
-                        headers: res.headers,
-                        path,
-                        init,
-                        body,
-                    });
-                }
-                return body;
-            }));
+            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.blob() }));
         });
     }
     text(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
-            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
             // make request
-            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
-                let body;
-                try {
-                    body = yield res.text();
-                }
-                catch (err) {
-                    throw InvalidResponseError.wrap(err, 'invalid response', {
-                        expectedStatus,
-                        status: res.status,
-                        headers: res.headers,
-                        path,
-                        init,
-                        body,
-                    });
-                }
-                return body;
-            }));
+            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.text() }));
         });
     }
     json(path, expectedStatus, init) {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
-            let [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
             // make request
-            return yield this.body(path, _expectedStatus, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers) }), (res, { path, init, expectedStatus }) => __awaiter(this, void 0, void 0, function* () {
-                let body;
-                try {
-                    body = yield res.text();
-                    body = JSON.parse(body);
-                }
-                catch (err) {
-                    throw InvalidResponseError.wrap(err, 'invalid response', {
-                        expectedStatus,
-                        status: res.status,
-                        headers: res.headers,
-                        path,
-                        init,
-                        body,
-                    });
-                }
-                return body;
-            }));
+            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.json() }));
         });
     }
     // response bodyless methods
