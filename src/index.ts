@@ -8,6 +8,42 @@ const isNumber = (n: any): boolean => typeof n === 'number'
 
 let f = typeof fetch === 'function' ? fetch : undefined
 
+export type MethodType =
+  | 'ACL'
+  | 'BIND'
+  | 'CHECKOUT'
+  | 'CONNECT'
+  | 'COPY'
+  | 'DELETE'
+  | 'GET'
+  | 'HEAD'
+  | 'LINK'
+  | 'LOCK'
+  | 'M-SEARCH'
+  | 'MERGE'
+  | 'MKACTIVITY'
+  | 'MKCALENDAR'
+  | 'MKCOL'
+  | 'MOVE'
+  | 'NOTIFY'
+  | 'OPTIONS'
+  | 'PATCH'
+  | 'POST'
+  | 'PROPFIND'
+  | 'PROPPATCH'
+  | 'PURGE'
+  | 'PUT'
+  | 'REBIND'
+  | 'REPORT'
+  | 'SEARCH'
+  | 'SOURCE'
+  | 'SUBSCRIBE'
+  | 'TRACE'
+  | 'UNBIND'
+  | 'UNLINK'
+  | 'UNLOCK'
+  | 'UNSUBSCRIBE'
+
 export function setFetch(_fetch: typeof fetch) {
   f = _fetch
 }
@@ -41,6 +77,7 @@ export interface ExtendedRequestInit<
   QueryType extends QueryParamsType = {},
   JsonType = {}
 > extends RequestInit {
+  method?: MethodType
   json?: JsonType | null | undefined
   query?: QueryType | null | undefined
   expectedStatus?: number | RegExp | null | undefined
@@ -92,7 +129,7 @@ export default class SimpleApiClient<
   }
 
   private async _fetch<QueryType extends QueryParamsType, JsonType = {}>(
-    path: string,
+    _path: string,
     init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
   ): Promise<[Error | null, Response | null, string, RequestInit]> {
     if (typeof f !== 'function') {
@@ -101,7 +138,8 @@ export default class SimpleApiClient<
         { fetch: f },
       )
     }
-
+    // hack: chrome lost parent scope outside of the generator scope?
+    const path = _path
     let extendedInit: ExtendedRequestInit = this.getInit
       ? await this.getInit(path, init)
       : init || {}
@@ -115,6 +153,7 @@ export default class SimpleApiClient<
     }
     const { expectedStatus, json, query, ..._fetchInit } = extendedInit
     const fetchInit: RequestInit = _fetchInit
+
     let fetchPath = `${this.host}/${path.replace(/^\//, '')}`
 
     if (json != null) {
@@ -131,6 +170,11 @@ export default class SimpleApiClient<
       if (queryString.length) {
         fetchPath = `${fetchPath}?${queryString}`
       }
+    }
+
+    if (fetchInit.method) {
+      // force method to be uppercase always
+      fetchInit.method = fetchInit.method.toUpperCase()
     }
 
     let res
@@ -163,7 +207,7 @@ export default class SimpleApiClient<
     return [null, res, fetchPath, fetchInit]
   }
 
-  private async fetch<QueryType extends QueryParamsType, JsonType = {}>(
+  async fetch<QueryType extends QueryParamsType, JsonType = {}>(
     path: string,
     init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
   ): Promise<Response> {
@@ -328,7 +372,7 @@ export default class SimpleApiClient<
     // make json request
     return this.fetch<QueryType, JsonType>(path, {
       ..._init,
-      method: 'head',
+      method: 'HEAD',
     })
   }
 
@@ -351,7 +395,7 @@ export default class SimpleApiClient<
     // make json request
     return this.json<JsonType, QueryType>(path, _expectedStatus, {
       ..._init,
-      method: 'get',
+      method: 'GET',
     })
   }
   async options<QueryType extends QueryParamsType = {}, JsonType = undefined>(
@@ -372,7 +416,7 @@ export default class SimpleApiClient<
     // make json request
     return this.json<JsonType, QueryType>(path, _expectedStatus, {
       ..._init,
-      method: 'options',
+      method: 'OPTIONS',
     })
   }
 
@@ -396,7 +440,7 @@ export default class SimpleApiClient<
 
     return this.json<JsonType, QueryType>(path, _expectedStatus, {
       ..._init,
-      method: 'post',
+      method: 'POST',
     })
   }
   async put<JsonType = {}, QueryType extends QueryParamsType = {}>(
@@ -417,7 +461,7 @@ export default class SimpleApiClient<
     // make json request
     return this.json<JsonType, QueryType>(path, _expectedStatus, {
       ..._init,
-      method: 'put',
+      method: 'PUT',
     })
   }
   async delete<JsonType = {}, QueryType extends QueryParamsType = {}>(
@@ -438,7 +482,7 @@ export default class SimpleApiClient<
     // make json request
     return this.json<JsonType, QueryType>(path, _expectedStatus, {
       ..._init,
-      method: 'delete',
+      method: 'DELETE',
     })
   }
   async patch<JsonType = {}, QueryType extends QueryParamsType = {}>(
@@ -459,7 +503,7 @@ export default class SimpleApiClient<
     // make json request
     return this.json<JsonType, QueryType>(path, _expectedStatus, {
       ..._init,
-      method: 'patch',
+      method: 'PATCH',
     })
   }
 }

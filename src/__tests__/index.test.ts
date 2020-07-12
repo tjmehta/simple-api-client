@@ -14,7 +14,10 @@ describe('SimpleApiClient', () => {
   let server: Server | undefined
   beforeEach(async () => {
     server = createServer((req, res) => {
-      if (req.url === '/text') {
+      if (req.url === '/method') {
+        res.statusCode = 200
+        res.end(req.method)
+      } else if (req.url === '/text') {
         res.statusCode = 200
         res.end('text body response')
       } else if (req.url === '/body') {
@@ -70,6 +73,16 @@ describe('SimpleApiClient', () => {
     expect(json).toEqual({
       message: 'hello world',
     })
+  })
+
+  it('should make a patch request using fetch', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const res = await apiClient.fetch('/method', {
+      method: 'PATCH',
+    })
+    const text = await res.text()
+    expect(res.status).toBe(200)
+    expect(text).toEqual('PATCH')
   })
 
   it('should error if json body is not an object', async () => {
@@ -152,7 +165,22 @@ describe('SimpleApiClient', () => {
   it('should send and recieve a json via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const json = await apiClient.json<{ foo: string }>('body', 200, {
-      method: 'post',
+      method: 'POST',
+      json: {
+        foo: 'bar',
+      },
+    })
+    expect(json).toMatchInlineSnapshot(`
+      Object {
+        "foo": "bar",
+      }
+    `)
+  })
+
+  it('should send and recieve a json via json method', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const json = await apiClient.json<{ foo: string }>('body', 200, {
+      method: 'PATCH',
       json: {
         foo: 'bar',
       },
@@ -169,7 +197,7 @@ describe('SimpleApiClient', () => {
     await expect(async () => {
       try {
         await apiClient.json<{ foo: string }>('body', 201, {
-          method: 'post',
+          method: 'POST',
           json: {
             foo: 'bar',
           },
@@ -248,7 +276,7 @@ describe('SimpleApiClient', () => {
         expect(_init).toEqual(
           expect.objectContaining({
             ...init,
-            method: 'post',
+            method: 'POST',
           }),
         )
         return {
@@ -277,7 +305,7 @@ describe('SimpleApiClient', () => {
         expect(_init).toEqual(
           expect.objectContaining({
             ...init,
-            method: 'post',
+            method: 'POST',
           }),
         )
         await new Promise((resolve) => resolve())

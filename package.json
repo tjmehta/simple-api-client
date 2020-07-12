@@ -35,15 +35,17 @@
     "@babel/preset-env": "^7.10.2",
     "@babel/preset-typescript": "^7.10.1",
     "@types/jest": "^25.2.3",
+    "@types/methods": "^1.1.1",
     "babel-core": "^6.26.3",
     "babel-jest": "^26.0.1",
+    "cross-fetch": "^3.0.5",
     "jest": "^26.0.1",
     "prettier": "^2.0.5",
-    "typescript": "^3.9.3",
-    "cross-fetch": "^3.0.5"
+    "typescript": "^3.9.3"
   },
   "dependencies": {
     "baseerr": "^1.0.1",
-    "is-regexp": "^2.1.0"
+    "is-regexp": "^2.1.0",
+    "methods": "^1.1.2"
   }
 }

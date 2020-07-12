@@ -1,5 +1,11 @@
 # v2.4.1
 
+- fix: alway upper case init.method before passing to fetch
+- fix: added method type to be uppercase methods
+- fix: strange hack to fix scope issue (after babel transform) with path variable
+
+# v2.4.1
+
 - fix: errors have "init" set with options passed to fetch
 
 # v2.4.0
