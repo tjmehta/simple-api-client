@@ -350,7 +350,7 @@ export default class SimpleApiClient<
         : init
 
     // make request
-    return await this.body<string, JsonType, QueryType>(path, {
+    return await this.body<any, JsonType, QueryType>(path, {
       ..._init,
       headers: {
         accept: 'application/json',

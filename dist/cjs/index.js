@@ -62,14 +62,12 @@ class SimpleApiClient {
             this.defaultInit = getInit;
         }
     }
-    _fetch(_path, init) {
+    _fetch(path, init) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
             if (typeof f !== 'function') {
                 throw new FetchMissingError('fetch is not a function, use setFetch to set a fetch function', { fetch: f });
             }
-            // hack: chrome lost parent scope outside of the generator scope?
-            const path = _path;
             let extendedInit = this.getInit
                 ? yield this.getInit(path, init)
                 : init || {};
@@ -163,7 +161,9 @@ class SimpleApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
             const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+                ? expectedStatus
+                : init;
             // make request
             return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.arrayBuffer() }));
         });
@@ -172,7 +172,9 @@ class SimpleApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
             const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+                ? expectedStatus
+                : init;
             // make request
             return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.blob() }));
         });
@@ -181,7 +183,9 @@ class SimpleApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
             const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+                ? expectedStatus
+                : init;
             // make request
             return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.text() }));
         });
@@ -190,7 +194,9 @@ class SimpleApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             // check arguments
             const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : init;
+                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+                ? expectedStatus
+                : init;
             // make request
             return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.json() }));
         });

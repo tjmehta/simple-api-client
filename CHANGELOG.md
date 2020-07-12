@@ -1,3 +1,7 @@
+# v2.4.4
+
+- fix: json methods typescript type
+
 # v2.4.3
 
 - fix: json/text/arraybuffer/blob init was not working when expected status is not supplied
