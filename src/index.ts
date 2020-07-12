@@ -129,7 +129,7 @@ export default class SimpleApiClient<
   }
 
   private async _fetch<QueryType extends QueryParamsType, JsonType = {}>(
-    _path: string,
+    path: string,
     init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
   ): Promise<[Error | null, Response | null, string, RequestInit]> {
     if (typeof f !== 'function') {
@@ -138,8 +138,7 @@ export default class SimpleApiClient<
         { fetch: f },
       )
     }
-    // hack: chrome lost parent scope outside of the generator scope?
-    const path = _path
+
     let extendedInit: ExtendedRequestInit = this.getInit
       ? await this.getInit(path, init)
       : init || {}
@@ -265,6 +264,8 @@ export default class SimpleApiClient<
     const _init =
       isNumber(expectedStatus) || isRegExp(expectedStatus)
         ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : expectedStatus != null
+        ? (expectedStatus as ExtendedRequestInit<QueryType, JsonType>)
         : init
 
     // make request
@@ -290,6 +291,8 @@ export default class SimpleApiClient<
     const _init =
       isNumber(expectedStatus) || isRegExp(expectedStatus)
         ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : expectedStatus != null
+        ? (expectedStatus as ExtendedRequestInit<QueryType, JsonType>)
         : init
 
     // make request
@@ -315,6 +318,8 @@ export default class SimpleApiClient<
     const _init =
       isNumber(expectedStatus) || isRegExp(expectedStatus)
         ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : expectedStatus != null
+        ? (expectedStatus as ExtendedRequestInit<QueryType, JsonType>)
         : init
 
     // make request
@@ -340,6 +345,8 @@ export default class SimpleApiClient<
     const _init =
       isNumber(expectedStatus) || isRegExp(expectedStatus)
         ? { expectedStatus: expectedStatus as number | RegExp, ...init }
+        : expectedStatus != null
+        ? (expectedStatus as ExtendedRequestInit<QueryType, JsonType>)
         : init
 
     // make request

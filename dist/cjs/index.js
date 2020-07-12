@@ -62,12 +62,14 @@ class SimpleApiClient {
             this.defaultInit = getInit;
         }
     }
-    _fetch(path, init) {
+    _fetch(_path, init) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
             if (typeof f !== 'function') {
                 throw new FetchMissingError('fetch is not a function, use setFetch to set a fetch function', { fetch: f });
             }
+            // hack: chrome lost parent scope outside of the generator scope?
+            const path = _path;
             let extendedInit = this.getInit
                 ? yield this.getInit(path, init)
                 : init || {};
@@ -84,6 +86,10 @@ class SimpleApiClient {
                 if (queryString.length) {
                     fetchPath = `${fetchPath}?${queryString}`;
                 }
+            }
+            if (fetchInit.method) {
+                // force method to be uppercase always
+                fetchInit.method = fetchInit.method.toUpperCase();
             }
             let res;
             try {
@@ -195,7 +201,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.fetch(path, Object.assign(Object.assign({}, _init), { method: 'head' }));
+            return this.fetch(path, Object.assign(Object.assign({}, _init), { method: 'HEAD' }));
         });
     }
     // request bodyless methods
@@ -204,7 +210,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'get' }));
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'GET' }));
         });
     }
     options(path, expectedStatus, init) {
@@ -212,7 +218,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'options' }));
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'OPTIONS' }));
         });
     }
     // request and response body methods
@@ -221,7 +227,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'post' }));
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'POST' }));
         });
     }
     put(path, expectedStatus, init) {
@@ -229,7 +235,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'put' }));
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'PUT' }));
         });
     }
     delete(path, expectedStatus, init) {
@@ -237,7 +243,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'delete' }));
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'DELETE' }));
         });
     }
     patch(path, expectedStatus, init) {
@@ -245,7 +251,7 @@ class SimpleApiClient {
             // check arguments
             const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
             // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'patch' }));
+            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'PATCH' }));
         });
     }
 }

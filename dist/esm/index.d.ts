@@ -1,5 +1,6 @@
 import { QueryParamsType } from './queryToString';
 import BaseError from 'baseerr';
+export declare type MethodType = 'ACL' | 'BIND' | 'CHECKOUT' | 'CONNECT' | 'COPY' | 'DELETE' | 'GET' | 'HEAD' | 'LINK' | 'LOCK' | 'M-SEARCH' | 'MERGE' | 'MKACTIVITY' | 'MKCALENDAR' | 'MKCOL' | 'MOVE' | 'NOTIFY' | 'OPTIONS' | 'PATCH' | 'POST' | 'PROPFIND' | 'PROPPATCH' | 'PURGE' | 'PUT' | 'REBIND' | 'REPORT' | 'SEARCH' | 'SOURCE' | 'SUBSCRIBE' | 'TRACE' | 'UNBIND' | 'UNLINK' | 'UNLOCK' | 'UNSUBSCRIBE';
 export declare function setFetch(_fetch: typeof fetch): void;
 export declare class FetchMissingError extends BaseError<{}> {
 }
@@ -24,6 +25,7 @@ export declare class InvalidResponseError extends BaseError<{
 }
 export { QueryParamsType } from './queryToString';
 export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
+    method?: MethodType;
     json?: JsonType | null | undefined;
     query?: QueryType | null | undefined;
     expectedStatus?: number | RegExp | null | undefined;
@@ -36,7 +38,7 @@ export default class SimpleApiClient<DefaultQueryType extends QueryParamsType = 
     protected readonly defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>;
     constructor(host: string, getInit?: GetRequestInit<DefaultQueryType, DefaultJsonType> | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>);
     private _fetch;
-    private fetch;
+    fetch<QueryType extends QueryParamsType, JsonType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined): Promise<Response>;
     body<Body = any, JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init: ExtendedRequestInit<QueryType, JsonType> & {
         toBody: ToBody<Body>;
     }): Promise<Body>;

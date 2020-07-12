@@ -1,8 +1,11 @@
-# v2.4.1
+# v2.4.3
+
+- fix: json/text/arraybuffer/blob init was not working when expected status is not supplied
+
+# v2.4.2
 
 - fix: alway upper case init.method before passing to fetch
 - fix: added method type to be uppercase methods
-- fix: strange hack to fix scope issue (after babel transform) with path variable
 
 # v2.4.1
 
