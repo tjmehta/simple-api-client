@@ -1,3 +1,7 @@
+# v2.5.0
+
+- feature: add backoff
+
 # v2.4.4
 
 - fix: json methods typescript type
