@@ -1,3 +1,4 @@
+import backoff, { Opts as BackoffOpts } from 'promise-backoff'
 import bodyToString, { BodyType } from './bodyToString'
 import queryToString, { QueryParamsType } from './queryToString'
 
@@ -60,6 +61,7 @@ export class StatusCodeError extends BaseError<{
   status: number
   headers: Headers
   body?: any
+  retryable?: boolean
 }> {}
 export class InvalidResponseError extends BaseError<{
   path: string
@@ -72,6 +74,9 @@ export class InvalidResponseError extends BaseError<{
 /*
  * exported types
  */
+export type ExtendedBackoffOpts = BackoffOpts & {
+  retryableStatusCodes: RegExp | Iterable<number>
+}
 export { QueryParamsType } from './queryToString'
 export interface ExtendedRequestInit<
   QueryType extends QueryParamsType = {},
@@ -81,6 +86,7 @@ export interface ExtendedRequestInit<
   json?: JsonType | null | undefined
   query?: QueryType | null | undefined
   expectedStatus?: number | RegExp | null | undefined
+  backoff?: ExtendedBackoffOpts | null | undefined
 }
 export type GetRequestInit<
   DefaultQueryType extends QueryParamsType = {},
@@ -150,7 +156,17 @@ export default class SimpleApiClient<
         ...extendedInit.headers,
       },
     }
-    const { expectedStatus, json, query, ..._fetchInit } = extendedInit
+    const {
+      expectedStatus,
+      json,
+      query,
+      backoff: _backoffOpts,
+      ..._fetchInit
+    } = extendedInit
+    const backoffOpts: ExtendedBackoffOpts = _backoffOpts ?? {
+      timeouts: [],
+      retryableStatusCodes: [],
+    }
     const fetchInit: RequestInit = _fetchInit
 
     let fetchPath = `${this.host}/${path.replace(/^\//, '')}`
@@ -176,31 +192,53 @@ export default class SimpleApiClient<
       fetchInit.method = fetchInit.method.toUpperCase()
     }
 
-    let res
+    let res = null
     try {
-      res = await f(fetchPath, fetchInit)
+      const _f = f // dont allow underlying fetch change mid-backoff
+      res = await backoff<Response>(
+        { ...backoffOpts, signal: fetchInit.signal },
+        async ({ retry, signal }) => {
+          try {
+            res = await _f(fetchPath, { ...fetchInit, signal })
+            const retryable = isRetryable(
+              backoffOpts.retryableStatusCodes,
+              res.status,
+            )
+            const unexpected = isUnexpected(expectedStatus, res.status)
+            const debug = {
+              expectedStatus,
+              status: res.status,
+              headers: res.headers,
+              path,
+              init: _fetchInit,
+            }
+            if (retryable) {
+              throw new StatusCodeError(`unexpected status`, {
+                ...debug,
+                retryable,
+              })
+            }
+            if (unexpected) {
+              throw new StatusCodeError(`unexpected status`, debug)
+            }
+            return res
+          } catch (err) {
+            if (err.name === 'AbortError') throw err
+            if (err instanceof StatusCodeError) {
+              if ((err as any).retryable) return retry(err)
+              throw err
+            }
+            return retry(
+              NetworkError.wrap(err, 'network error', {
+                path,
+                init,
+              }),
+            )
+          }
+        },
+      )
     } catch (err) {
-      const e = NetworkError.wrap(err, 'network error', {
-        path,
-        init,
-      })
-      return [e, null, fetchPath, fetchInit]
-    }
-
-    if (
-      expectedStatus != null &&
-      (expectedStatus !== res.status ||
-        (isRegExp(expectedStatus) &&
-          !expectedStatus.test(res.status.toString())))
-    ) {
-      const e = new StatusCodeError(`unexpected status`, {
-        expectedStatus,
-        status: res.status,
-        headers: res.headers,
-        path,
-        init: _fetchInit,
-      })
-      return [e, res, fetchPath, fetchInit]
+      return [err, res, fetchPath, fetchInit]
     }
 
     return [null, res, fetchPath, fetchInit]
@@ -323,7 +361,7 @@ export default class SimpleApiClient<
         : init
 
     // make request
-    return await this.body<string, JsonType, QueryType>(path, {
+    return this.body<string, JsonType, QueryType>(path, {
       ..._init,
       headers: {
         accept: 'text/plain; charset=utf-8',
@@ -541,4 +579,30 @@ function getMethodArgs<JsonType = {}, QueryType extends QueryParamsType = {}>(
   }
 
   return [_expectedStatus, _init]
+}
+
+function isUnexpected(
+  expectedStatus: RegExp | number | null | undefined,
+  statusCode: number,
+) {
+  if (expectedStatus == null) return false
+  // @ts-ignore
+  if ((expectedStatus as RegExp).test) {
+    return (expectedStatus as RegExp).test(statusCode.toString())
+  }
+  return expectedStatus !== statusCode
+}
+
+function isRetryable(
+  retryableStatusCodes: RegExp | Iterable<number>,
+  statusCode: number,
+) {
+  // @ts-ignore
+  if ((retryableStatusCodes as RegExp).test) {
+    return (retryableStatusCodes as RegExp).test(statusCode.toString())
+  }
+  const retryableStatusCodesSet = new Set<number>(
+    retryableStatusCodes as Iterable<number>,
+  )
+  return retryableStatusCodesSet.has(statusCode)
 }

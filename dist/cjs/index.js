@@ -24,6 +24,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InvalidResponseError = exports.StatusCodeError = exports.NetworkError = exports.FetchMissingError = exports.setFetch = void 0;
+const promise_backoff_1 = __importDefault(require("promise-backoff"));
 const bodyToString_1 = __importDefault(require("./bodyToString"));
 const queryToString_1 = __importDefault(require("./queryToString"));
 const baseerr_1 = __importDefault(require("baseerr"));
@@ -72,7 +73,11 @@ class SimpleApiClient {
                 ? yield this.getInit(path, init)
                 : init || {};
             extendedInit = Object.assign(Object.assign(Object.assign({}, this.defaultInit), extendedInit), { headers: Object.assign(Object.assign({}, (_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers), extendedInit.headers) });
-            const { expectedStatus, json, query } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query"]);
+            const { expectedStatus, json, query, backoff: _backoffOpts } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query", "backoff"]);
+            const backoffOpts = _backoffOpts !== null && _backoffOpts !== void 0 ? _backoffOpts : {
+                timeouts: [],
+                retryableStatusCodes: [],
+            };
             const fetchInit = _fetchInit;
             let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
             if (json != null) {
@@ -89,29 +94,46 @@ class SimpleApiClient {
                 // force method to be uppercase always
                 fetchInit.method = fetchInit.method.toUpperCase();
             }
-            let res;
+            let res = null;
             try {
-                res = yield f(fetchPath, fetchInit);
+                const _f = f; // dont allow underlying fetch change mid-backoff
+                res = yield promise_backoff_1.default(Object.assign(Object.assign({}, backoffOpts), { signal: fetchInit.signal }), ({ retry, signal }) => __awaiter(this, void 0, void 0, function* () {
+                    try {
+                        res = yield _f(fetchPath, Object.assign(Object.assign({}, fetchInit), { signal }));
+                        const retryable = isRetryable(backoffOpts.retryableStatusCodes, res.status);
+                        const unexpected = isUnexpected(expectedStatus, res.status);
+                        const debug = {
+                            expectedStatus,
+                            status: res.status,
+                            headers: res.headers,
+                            path,
+                            init: _fetchInit,
+                        };
+                        if (retryable) {
+                            throw new StatusCodeError(`unexpected status`, Object.assign(Object.assign({}, debug), { retryable }));
+                        }
+                        if (unexpected) {
+                            throw new StatusCodeError(`unexpected status`, debug);
+                        }
+                        return res;
+                    }
+                    catch (err) {
+                        if (err.name === 'AbortError')
+                            throw err;
+                        if (err instanceof StatusCodeError) {
+                            if (err.retryable)
+                                return retry(err);
+                            throw err;
+                        }
+                        return retry(NetworkError.wrap(err, 'network error', {
+                            path,
+                            init,
+                        }));
+                    }
+                }));
             }
             catch (err) {
-                const e = NetworkError.wrap(err, 'network error', {
-                    path,
-                    init,
-                });
-                return [e, null, fetchPath, fetchInit];
-            }
-            if (expectedStatus != null &&
-                (expectedStatus !== res.status ||
-                    (is_regexp_1.default(expectedStatus) &&
-                        !expectedStatus.test(res.status.toString())))) {
-                const e = new StatusCodeError(`unexpected status`, {
-                    expectedStatus,
-                    status: res.status,
-                    headers: res.headers,
-                    path,
-                    init: _fetchInit,
-                });
-                return [e, res, fetchPath, fetchInit];
+                return [err, res, fetchPath, fetchInit];
             }
             return [null, res, fetchPath, fetchInit];
         });
@@ -187,7 +209,7 @@ class SimpleApiClient {
                 ? expectedStatus
                 : init;
             // make request
-            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.text() }));
+            return this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.text() }));
         });
     }
     json(path, expectedStatus, init) {
@@ -276,5 +298,22 @@ function getMethodArgs(expectedStatus, init) {
         _expectedStatus = null;
     }
     return [_expectedStatus, _init];
+}
+function isUnexpected(expectedStatus, statusCode) {
+    if (expectedStatus == null)
+        return false;
+    // @ts-ignore
+    if (expectedStatus.test) {
+        return expectedStatus.test(statusCode.toString());
+    }
+    return expectedStatus !== statusCode;
+}
+function isRetryable(retryableStatusCodes, statusCode) {
+    // @ts-ignore
+    if (retryableStatusCodes.test) {
+        return retryableStatusCodes.test(statusCode.toString());
+    }
+    const retryableStatusCodesSet = new Set(retryableStatusCodes);
+    return retryableStatusCodesSet.has(statusCode);
 }
 //# sourceMappingURL=index.js.map
