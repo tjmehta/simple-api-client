@@ -1,6 +1,6 @@
 # simple-api-client [![Build Status](https://travis-ci.org/tjmehta/simple-api-client.svg?branch=master)](https://travis-ci.org/tjmehta/simple-api-client)
 
-create a quick simple extendable api client, powered by fetch, and that has syntactic sugar for interacting with json APIs
+create a quick simple extendable api client, powered by fetch, that has syntactic sugar for interacting with json APIs, and supports backoffs
 
 # Installation
 
@@ -245,6 +245,53 @@ try {
     console.log(err.status) // 200
     console.log(err.path) // 'photos'
     console.log(err.init) // { method: 'get', headers: { accept: 'application/octet-stream', content-type: 'application/json' }}
+    console.log(err.body) // 'some non-json body' // the body as text
+    console.log(err.source) // <original json parse error>
+  }
+}
+```
+
+## Supports fetch backoffs via [promise-backoff](https://github.com/tjmehta/promise-backoff)
+
+Using backoffs with server requests is highly recommended but requires `backoff` options
+
+```js
+import ApiClient, {
+  StatusCodeError,
+  InvalidResponseError,
+} from 'simple-api-client'
+
+const client = new ApiClient('http://graph.facebook.com')
+
+try {
+  // expected status code is the second argument and optional, can also be a regexp like /200|201/
+  // json will assume you are fetching json from your api, and will verify the status code
+  // expected status codes are optional and can be provided as a number or regexp
+  const json = await client.json('photos', 200, {
+    method: 'post',
+    json: { foo: 'val' },
+    backoff: {
+      // required
+      timeouts: [10, 20, 30]
+      retryableStatusCodes: /^50[0-9]$/, // RegExp or Iterable<number> (array, set, ...)
+      // optional w/ defaults shown
+      minTimeout: 0,
+      maxTimeout: Infinity,
+      jitter: (duration) => duration * Math.random(), // full jitter
+    }
+  })
+} catch (err) {
+  if (err instanceof StatusCodeError) {
+    console.log(err.name) // 'StatusCodeError'
+    console.log(err.status) // 500
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
+    console.log(err.body) // { status: 500, message: 'something bad happened' } or '500 error: something bad happened' // the body as json or text
+  } else if (err instanceof InvalidResponseError) {
+    console.log(err.name) // 'InvalidResponseError'
+    console.log(err.status) // 200
+    console.log(err.path) // 'photos'
+    console.log(err.init) // { method: 'post', json: { foo: 'val' }, headers: { accept: 'application/json', content-type: 'application/json' }}
     console.log(err.body) // 'some non-json body' // the body as text
     console.log(err.source) // <original json parse error>
   }

@@ -38,14 +38,16 @@
     "@types/methods": "^1.1.1",
     "babel-core": "^6.26.3",
     "babel-jest": "^26.0.1",
+    "blob-polyfill": "^5.0.20210201",
     "cross-fetch": "^3.0.5",
-    "jest": "^26.0.1",
+    "jest": "^27.0.1",
     "prettier": "^2.0.5",
     "typescript": "^3.9.3"
   },
   "dependencies": {
     "baseerr": "^1.0.1",
     "is-regexp": "^2.1.0",
-    "methods": "^1.1.2"
+    "methods": "^1.1.2",
+    "promise-backoff": "^1.1.1"
   }
 }

@@ -1,18 +1,15 @@
 import { Server, createServer } from 'http'
-import SimpleApiClient, {
-  InvalidResponseError,
-  StatusCodeError,
-  setFetch,
-} from '../index'
+import SimpleApiClient, { setFetch } from '../index'
 
+import { Blob } from 'blob-polyfill'
 import fetch from 'cross-fetch'
 
-setFetch(fetch)
 const PORT = process.env.PORT || 3334
 
 describe('SimpleApiClient', () => {
   let server: Server | undefined
   beforeEach(async () => {
+    setFetch(fetch)
     server = createServer((req, res) => {
       if (req.url === '/method') {
         res.statusCode = 200
@@ -29,18 +26,27 @@ describe('SimpleApiClient', () => {
       } else if (/^\/query/.test(req.url)) {
         res.statusCode = 200
         res.end(JSON.stringify(req.url))
+      } else if (/^\/code/.test(req.url)) {
+        const statusCode = parseInt(req.url.split('=').pop(), 10)
+        if (isNaN(statusCode)) {
+          res.statusCode = 500
+          res.end('error: invalid status code')
+          return
+        }
+        res.statusCode = statusCode
+        res.end(`statusCode is ${statusCode}`)
       } else {
         res.statusCode = 200
         res.end(JSON.stringify({ message: 'hello world' }))
       }
     })
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       server.once('error', reject)
       server.listen(PORT, resolve)
     })
   })
   afterEach(async () => {
-    await new Promise((resolve, reject) =>
+    await new Promise<void>((resolve, reject) =>
       server.close((err) => (err ? reject(err) : resolve())),
     )
   })
@@ -98,7 +104,7 @@ describe('SimpleApiClient', () => {
     )
   })
 
-  it('should send and recieve a json', async () => {
+  it('should send and receive a json', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const body = await apiClient.post<{ foo: string }>('body', {
       json: {
@@ -112,13 +118,13 @@ describe('SimpleApiClient', () => {
     `)
   })
 
-  it('should recieve a text via text method', async () => {
+  it('should receive a text via text method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const text = await apiClient.text('text', 200)
     expect(text).toMatchInlineSnapshot(`"text body response"`)
   })
 
-  it('should recieve a arrayBuffer via arrayBuffer method', async () => {
+  it('should receive a arrayBuffer via arrayBuffer method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const arrayBuffer = await apiClient.arrayBuffer('text', 200)
     expect(arrayBuffer).toMatchInlineSnapshot(`ArrayBuffer []`)
@@ -127,7 +133,7 @@ describe('SimpleApiClient', () => {
     expect(text).toMatchInlineSnapshot(`"text body response"`)
   })
 
-  it('should recieve a blob via blob method', async () => {
+  it('should receive a blob via blob method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const blob = await apiClient.blob('text', 200)
     const text = await blobToString(blob)
@@ -162,7 +168,7 @@ describe('SimpleApiClient', () => {
     `)
   })
 
-  it('should send and recieve a json via json method', async () => {
+  it('should send and receive a json via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const json = await apiClient.json<{ foo: string }>('body', 200, {
       method: 'POST',
@@ -177,7 +183,7 @@ describe('SimpleApiClient', () => {
     `)
   })
 
-  it('should send and recieve a json via json method', async () => {
+  it('should send and receive a json via json method', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const json = await apiClient.json<{ foo: string }>('body', 200, {
       method: 'PATCH',
@@ -216,7 +222,7 @@ describe('SimpleApiClient', () => {
                 "accept": "application/json",
                 "content-type": "application/json",
               },
-              "method": "post",
+              "method": "POST",
             },
             "name": "StatusCodeError",
             "path": "body",
@@ -252,7 +258,7 @@ describe('SimpleApiClient', () => {
     }).rejects.toMatchInlineSnapshot(`[InvalidResponseError: invalid response]`)
   })
 
-  it('should send and recieve a json (default init)', async () => {
+  it('should send and receive a json (default init)', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
       json: {
         foo: 'bar',
@@ -266,7 +272,7 @@ describe('SimpleApiClient', () => {
     `)
   })
 
-  it('should send and recieve a json (default init as function)', async () => {
+  it('should send and receive a json (default init as function)', async () => {
     const path = 'body'
     const init = {}
     const apiClient = new SimpleApiClient(
@@ -295,7 +301,7 @@ describe('SimpleApiClient', () => {
     `)
   })
 
-  it('should send and recieve a json (default init as async function)', async () => {
+  it('should send and receive a json (default init as async function)', async () => {
     const path = 'body'
     const init = {}
     const apiClient = new SimpleApiClient(
@@ -308,7 +314,7 @@ describe('SimpleApiClient', () => {
             method: 'POST',
           }),
         )
-        await new Promise((resolve) => resolve())
+        await new Promise<void>((resolve) => resolve())
         return {
           json: {
             foo: 'bar',
@@ -325,18 +331,18 @@ describe('SimpleApiClient', () => {
     `)
   })
 
-  it('should send and recieve query params', async () => {
-    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
+  it('should send and receive query params', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    const body = await apiClient.get('query', 200, {
       query: {
         foo: 'val',
         bar: ['one', 'two'],
       },
     })
-    const body = await apiClient.get('query')
     expect(body).toMatchInlineSnapshot(`"/query?foo=val&bar=one&bar=two"`)
   })
 
-  it('should send and recieve query params (default init)', async () => {
+  it('should send and receive query params (default init)', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
       query: {
         foo: 'val',
@@ -347,7 +353,7 @@ describe('SimpleApiClient', () => {
     expect(body).toMatchInlineSnapshot(`"/query?foo=val&bar=one&bar=two"`)
   })
 
-  it('should send and recieve a headers (default init)', async () => {
+  it('should send and receive a headers (default init)', async () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`, {
       headers: {
         'x-custom-first': 'foo',
@@ -370,6 +376,31 @@ describe('SimpleApiClient', () => {
         "x-custom-second": "bar",
       }
     `)
+  })
+
+  it('should retry', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    // @ts-ignore
+    const f = jest.fn(fetch)
+    setFetch(f)
+    f.mockRejectedValueOnce(new Error('network error 1'))
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=502'), init)
+    })
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=502'), init)
+    })
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=200'), init)
+    })
+    const promise = apiClient.text('<path>', 200, {
+      backoff: {
+        timeouts: [0, 0, 0],
+        retryableStatusCodes: [502],
+      },
+    })
+    await expect(promise).resolves.toMatchInlineSnapshot(`"statusCode is 200"`)
+    expect(f).toHaveBeenCalledTimes(4)
   })
 
   describe('fetch is not defined', () => {

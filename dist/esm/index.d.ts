@@ -1,3 +1,4 @@
+import { Opts as BackoffOpts } from 'promise-backoff';
 import { QueryParamsType } from './queryToString';
 import BaseError from 'baseerr';
 export declare type MethodType = 'ACL' | 'BIND' | 'CHECKOUT' | 'CONNECT' | 'COPY' | 'DELETE' | 'GET' | 'HEAD' | 'LINK' | 'LOCK' | 'M-SEARCH' | 'MERGE' | 'MKACTIVITY' | 'MKCALENDAR' | 'MKCOL' | 'MOVE' | 'NOTIFY' | 'OPTIONS' | 'PATCH' | 'POST' | 'PROPFIND' | 'PROPPATCH' | 'PURGE' | 'PUT' | 'REBIND' | 'REPORT' | 'SEARCH' | 'SOURCE' | 'SUBSCRIBE' | 'TRACE' | 'UNBIND' | 'UNLINK' | 'UNLOCK' | 'UNSUBSCRIBE';
@@ -13,6 +14,7 @@ export declare class StatusCodeError extends BaseError<{
     status: number;
     headers: Headers;
     body?: any;
+    retryable?: boolean;
 }> {
 }
 export declare class InvalidResponseError extends BaseError<{
@@ -23,12 +25,16 @@ export declare class InvalidResponseError extends BaseError<{
     body?: any;
 }> {
 }
+export declare type ExtendedBackoffOpts = BackoffOpts & {
+    retryableStatusCodes: RegExp | Iterable<number>;
+};
 export { QueryParamsType } from './queryToString';
 export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
     method?: MethodType;
     json?: JsonType | null | undefined;
     query?: QueryType | null | undefined;
     expectedStatus?: number | RegExp | null | undefined;
+    backoff?: ExtendedBackoffOpts | null | undefined;
 }
 export declare type GetRequestInit<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> = ((path: string, init?: ExtendedRequestInit | null | undefined) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>) | ((path: string, init?: ExtendedRequestInit | null | undefined) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>);
 export declare type ToBody<Body = any> = (res: Response, path: string, init: RequestInit) => Promise<Body>;
