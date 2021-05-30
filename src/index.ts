@@ -75,7 +75,7 @@ export class InvalidResponseError extends BaseError<{
  * exported types
  */
 export type ExtendedBackoffOpts = BackoffOpts & {
-  retryableStatusCodes: RegExp | Iterable<number>
+  retryableStatus: RegExp | Iterable<number>
 }
 export { QueryParamsType } from './queryToString'
 export interface ExtendedRequestInit<
@@ -165,7 +165,7 @@ export default class SimpleApiClient<
     } = extendedInit
     const backoffOpts: ExtendedBackoffOpts = _backoffOpts ?? {
       timeouts: [],
-      retryableStatusCodes: [],
+      retryableStatus: [],
     }
     const fetchInit: RequestInit = _fetchInit
 
@@ -201,7 +201,7 @@ export default class SimpleApiClient<
           try {
             res = await _f(fetchPath, { ...fetchInit, signal })
             const retryable = isRetryable(
-              backoffOpts.retryableStatusCodes,
+              backoffOpts.retryableStatus,
               res.status,
             )
             const unexpected = isUnexpected(expectedStatus, res.status)
@@ -594,15 +594,15 @@ function isUnexpected(
 }
 
 function isRetryable(
-  retryableStatusCodes: RegExp | Iterable<number>,
+  retryableStatus: RegExp | Iterable<number>,
   statusCode: number,
 ) {
   // @ts-ignore
-  if ((retryableStatusCodes as RegExp).test) {
-    return (retryableStatusCodes as RegExp).test(statusCode.toString())
+  if ((retryableStatus as RegExp).test) {
+    return (retryableStatus as RegExp).test(statusCode.toString())
   }
-  const retryableStatusCodesSet = new Set<number>(
-    retryableStatusCodes as Iterable<number>,
+  const retryableStatusSet = new Set<number>(
+    retryableStatus as Iterable<number>,
   )
-  return retryableStatusCodesSet.has(statusCode)
+  return retryableStatusSet.has(statusCode)
 }
