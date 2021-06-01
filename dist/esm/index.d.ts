@@ -26,7 +26,7 @@ export declare class InvalidResponseError extends BaseError<{
 }> {
 }
 export declare type ExtendedBackoffOpts = BackoffOpts & {
-    retryableStatusCodes: RegExp | Iterable<number>;
+    retryableStatus: RegExp | Iterable<number>;
 };
 export { QueryParamsType } from './queryToString';
 export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {

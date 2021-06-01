@@ -65,7 +65,7 @@ export default class SimpleApiClient {
             const { expectedStatus, json, query, backoff: _backoffOpts } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query", "backoff"]);
             const backoffOpts = _backoffOpts !== null && _backoffOpts !== void 0 ? _backoffOpts : {
                 timeouts: [],
-                retryableStatusCodes: [],
+                retryableStatus: [],
             };
             const fetchInit = _fetchInit;
             let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
@@ -89,7 +89,7 @@ export default class SimpleApiClient {
                 res = yield backoff(Object.assign(Object.assign({}, backoffOpts), { signal: fetchInit.signal }), ({ retry, signal }) => __awaiter(this, void 0, void 0, function* () {
                     try {
                         res = yield _f(fetchPath, Object.assign(Object.assign({}, fetchInit), { signal }));
-                        const retryable = isRetryable(backoffOpts.retryableStatusCodes, res.status);
+                        const retryable = isRetryable(backoffOpts.retryableStatus, res.status);
                         const unexpected = isUnexpected(expectedStatus, res.status);
                         const debug = {
                             expectedStatus,
@@ -296,12 +296,12 @@ function isUnexpected(expectedStatus, statusCode) {
     }
     return expectedStatus !== statusCode;
 }
-function isRetryable(retryableStatusCodes, statusCode) {
+function isRetryable(retryableStatus, statusCode) {
     // @ts-ignore
-    if (retryableStatusCodes.test) {
-        return retryableStatusCodes.test(statusCode.toString());
+    if (retryableStatus.test) {
+        return retryableStatus.test(statusCode.toString());
     }
-    const retryableStatusCodesSet = new Set(retryableStatusCodes);
-    return retryableStatusCodesSet.has(statusCode);
+    const retryableStatusSet = new Set(retryableStatus);
+    return retryableStatusSet.has(statusCode);
 }
 //# sourceMappingURL=index.js.map

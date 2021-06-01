@@ -1,3 +1,8 @@
+# v3.0.0
+
+- breaking: changed backoff options for consistency with throttle options
+- feature: add throttle
+
 # v2.5.0
 
 - feature: add backoff

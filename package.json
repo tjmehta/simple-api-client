@@ -45,8 +45,11 @@
     "typescript": "^3.9.3"
   },
   "dependencies": {
+    "abortable-timeout": "^1.0.1",
     "baseerr": "^1.0.1",
+    "fast-abort-controller": "^2.0.0",
     "is-regexp": "^2.1.0",
+    "memoize-concurrent": "^1.1.1",
     "methods": "^1.1.2",
     "promise-backoff": "^1.1.1"
   }

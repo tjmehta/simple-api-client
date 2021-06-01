@@ -1,9 +1,11 @@
 import backoff, { Opts as BackoffOpts } from 'promise-backoff'
-import bodyToString, { BodyType } from './bodyToString'
 import queryToString, { QueryParamsType } from './queryToString'
 
 import BaseError from 'baseerr'
+import bodyToString from './bodyToString'
 import isRegExp from 'is-regexp'
+import memoizeConcurrent from 'memoize-concurrent'
+import timeout from 'abortable-timeout'
 
 const isNumber = (n: any): boolean => typeof n === 'number'
 
@@ -75,7 +77,17 @@ export class InvalidResponseError extends BaseError<{
  * exported types
  */
 export type ExtendedBackoffOpts = BackoffOpts & {
-  retryableStatus: RegExp | Iterable<number>
+  statusCodes: RegExp | Iterable<number>
+}
+export type ThrottleOpts<QueryType extends QueryParamsType, JsonType = {}> = {
+  statusCodes: RegExp | Iterable<number>
+  timeout:
+    | number
+    | ((
+        res: Response,
+        path: string,
+        init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined,
+      ) => number)
 }
 export { QueryParamsType } from './queryToString'
 export interface ExtendedRequestInit<
@@ -87,6 +99,7 @@ export interface ExtendedRequestInit<
   query?: QueryType | null | undefined
   expectedStatus?: number | RegExp | null | undefined
   backoff?: ExtendedBackoffOpts | null | undefined
+  throttle?: ThrottleOpts<QueryType, JsonType> | null | undefined
 }
 export type GetRequestInit<
   DefaultQueryType extends QueryParamsType = {},
@@ -113,6 +126,7 @@ export default class SimpleApiClient<
   DefaultQueryType extends QueryParamsType = {},
   DefaultJsonType = {}
 > {
+  protected isThrottling: boolean = false
   protected readonly host: string
   protected readonly getInit?: GetRequestInit<DefaultQueryType, DefaultJsonType>
   protected readonly defaultInit?: ExtendedRequestInit<
@@ -133,6 +147,22 @@ export default class SimpleApiClient<
       this.defaultInit = getInit
     }
   }
+
+  private throttleTimeout = memoizeConcurrent(
+    async (duration: number, signal: AbortSignal | null | undefined) => {
+      this.isThrottling = true
+      await timeout(duration, signal)
+      this.isThrottling = false
+    },
+    {
+      cacheKey: () => 'all',
+      signalAccessors: {
+        get: ([duration, signal]) => signal,
+        set: (signal, [duration]) =>
+          [duration, signal] as [number, AbortSignal],
+      },
+    },
+  )
 
   private async _fetch<QueryType extends QueryParamsType, JsonType = {}>(
     path: string,
@@ -161,11 +191,16 @@ export default class SimpleApiClient<
       json,
       query,
       backoff: _backoffOpts,
+      throttle: _throttleOpts,
       ..._fetchInit
     } = extendedInit
     const backoffOpts: ExtendedBackoffOpts = _backoffOpts ?? {
       timeouts: [],
-      retryableStatus: [],
+      statusCodes: [],
+    }
+    const throttleOpts: ThrottleOpts<QueryType, JsonType> = _throttleOpts ?? {
+      timeout: 0,
+      statusCodes: [],
     }
     const fetchInit: RequestInit = _fetchInit
 
@@ -199,12 +234,10 @@ export default class SimpleApiClient<
         { ...backoffOpts, signal: fetchInit.signal },
         async ({ retry, signal }) => {
           try {
+            if (this.isThrottling) {
+              await this.throttleTimeout(0, fetchInit.signal) // duration doesn't matter, memoized
+            }
             res = await _f(fetchPath, { ...fetchInit, signal })
-            const retryable = isRetryable(
-              backoffOpts.retryableStatus,
-              res.status,
-            )
-            const unexpected = isUnexpected(expectedStatus, res.status)
             const debug = {
               expectedStatus,
               status: res.status,
@@ -212,13 +245,24 @@ export default class SimpleApiClient<
               path,
               init: _fetchInit,
             }
-            if (retryable) {
+            if (statusMatches(res.status, throttleOpts.statusCodes)) {
+              const throttleDuration =
+                typeof throttleOpts.timeout === 'number'
+                  ? throttleOpts.timeout
+                  : throttleOpts.timeout(res, path, init)
+              // start timeout promise but don't await, throttle will be effective for future requests (above)
+              this.throttleTimeout(throttleDuration, signal)
+            }
+            if (statusMatches(res.status, backoffOpts.statusCodes)) {
               throw new StatusCodeError(`unexpected status`, {
                 ...debug,
-                retryable,
+                retryable: true,
               })
             }
-            if (unexpected) {
+            if (
+              expectedStatus != null &&
+              !statusMatches(res.status, expectedStatus)
+            ) {
               throw new StatusCodeError(`unexpected status`, debug)
             }
             return res
@@ -581,28 +625,15 @@ function getMethodArgs<JsonType = {}, QueryType extends QueryParamsType = {}>(
   return [_expectedStatus, _init]
 }
 
-function isUnexpected(
-  expectedStatus: RegExp | number | null | undefined,
+function statusMatches(
   statusCode: number,
+  match: RegExp | Iterable<number> | number | null | undefined,
 ) {
-  if (expectedStatus == null) return false
-  // @ts-ignore
-  if ((expectedStatus as RegExp).test) {
-    return (expectedStatus as RegExp).test(statusCode.toString())
+  if (match == null) return false
+  if (typeof match === 'number') return match === statusCode
+  if ((match as RegExp).test) {
+    return (match as RegExp).test(statusCode.toString())
   }
-  return expectedStatus !== statusCode
-}
-
-function isRetryable(
-  retryableStatus: RegExp | Iterable<number>,
-  statusCode: number,
-) {
-  // @ts-ignore
-  if ((retryableStatus as RegExp).test) {
-    return (retryableStatus as RegExp).test(statusCode.toString())
-  }
-  const retryableStatusSet = new Set<number>(
-    retryableStatus as Iterable<number>,
-  )
-  return retryableStatusSet.has(statusCode)
+  const statusCodes = new Set<number>(match as Iterable<number>)
+  return statusCodes.has(statusCode)
 }
