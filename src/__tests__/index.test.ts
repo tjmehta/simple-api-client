@@ -396,7 +396,67 @@ describe('SimpleApiClient', () => {
     const promise = apiClient.text('<path>', 200, {
       backoff: {
         timeouts: [0, 0, 0],
-        retryableStatusCodes: [502],
+        statusCodes: [502],
+      },
+    })
+    await expect(promise).resolves.toMatchInlineSnapshot(`"statusCode is 200"`)
+    expect(f).toHaveBeenCalledTimes(4)
+  })
+
+  it('should throttle', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    // @ts-ignore
+    const f = jest.fn(fetch)
+    setFetch(f)
+    f.mockRejectedValueOnce(new Error('network error 1'))
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=502'), init)
+    })
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=502'), init)
+    })
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=429'), init)
+    })
+    const promise = apiClient.text('<path>', 200, {
+      backoff: {
+        timeouts: [0, 0, 0],
+        statusCodes: [502],
+      },
+      throttle: {
+        timeout: 100, // TODO: test timings
+        statusCodes: [429],
+      },
+    })
+    await expect(promise).rejects.toMatchInlineSnapshot(
+      `[StatusCodeError: unexpected status]`,
+    )
+    expect(f).toHaveBeenCalledTimes(4)
+  })
+
+  it('should throttle and retry', async () => {
+    const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
+    // @ts-ignore
+    const f = jest.fn(fetch)
+    setFetch(f)
+    f.mockRejectedValueOnce(new Error('network error 1'))
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=502'), init)
+    })
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=429'), init)
+    })
+    f.mockImplementationOnce((input, init) => {
+      return fetch((input as string).replace('<path>', 'code?code=200'), init)
+    })
+    const promise = apiClient.text('<path>', 200, {
+      backoff: {
+        timeouts: [0, 0, 0],
+        statusCodes: [502, 429],
+      },
+      throttle: {
+        timeout: 100, // TODO: test timings
+        statusCodes: [429],
       },
     })
     await expect(promise).resolves.toMatchInlineSnapshot(`"statusCode is 200"`)
