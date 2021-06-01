@@ -14,9 +14,9 @@ npm i --save simple-api-client
 
 ```js
 // esm
-import AbstractStartable from 'abstract-startable`
+import ApiClient from 'simple-api-client'
 // commonjs
-const AbstractStartable = require('abstract-startable')
+const ApiClient = require('simple-api-client').default
 ```
 
 ## A thin wrapper over fetch
