@@ -273,7 +273,7 @@ try {
     backoff: {
       // required
       timeouts: [10, 20, 30]
-      retryableStatusCodes: /^50[0-9]$/, // RegExp or Iterable<number> (array, set, ...)
+      statusCodes: /^50[0-9]$/, // RegExp or Iterable<number> (array, set, ...)
       // optional w/ defaults shown
       minTimeout: 0,
       maxTimeout: Infinity,
