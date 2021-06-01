@@ -235,7 +235,7 @@ export default class SimpleApiClient<
         async ({ retry, signal }) => {
           try {
             if (this.isThrottling) {
-              await this.throttleTimeout(0, fetchInit.signal) // duration doesn't matter, memoized
+              await this.throttleTimeout(0, signal) // duration doesn't matter, memoized
             }
             res = await _f(fetchPath, { ...fetchInit, signal })
             const debug = {
