@@ -19,10 +19,12 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 import backoff from 'promise-backoff';
-import bodyToString from './bodyToString';
 import queryToString from './queryToString';
 import BaseError from 'baseerr';
+import bodyToString from './bodyToString';
 import isRegExp from 'is-regexp';
+import memoizeConcurrent from 'memoize-concurrent';
+import timeout from 'abortable-timeout';
 const isNumber = (n) => typeof n === 'number';
 let f = typeof fetch === 'function' ? fetch : undefined;
 export function setFetch(_fetch) {
@@ -44,6 +46,18 @@ export class InvalidResponseError extends BaseError {
  */
 export default class SimpleApiClient {
     constructor(host, getInit) {
+        this.isThrottling = false;
+        this.throttleTimeout = memoizeConcurrent((duration, signal) => __awaiter(this, void 0, void 0, function* () {
+            this.isThrottling = true;
+            yield timeout(duration, signal);
+            this.isThrottling = false;
+        }), {
+            cacheKey: () => 'all',
+            signalAccessors: {
+                get: ([duration, signal]) => signal,
+                set: (signal, [duration]) => [duration, signal],
+            },
+        });
         this.host = host.replace(/\/$/, '');
         if (typeof getInit === 'function') {
             this.getInit = getInit;
@@ -62,10 +76,14 @@ export default class SimpleApiClient {
                 ? yield this.getInit(path, init)
                 : init || {};
             extendedInit = Object.assign(Object.assign(Object.assign({}, this.defaultInit), extendedInit), { headers: Object.assign(Object.assign({}, (_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers), extendedInit.headers) });
-            const { expectedStatus, json, query, backoff: _backoffOpts } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query", "backoff"]);
+            const { expectedStatus, json, query, backoff: _backoffOpts, throttle: _throttleOpts } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query", "backoff", "throttle"]);
             const backoffOpts = _backoffOpts !== null && _backoffOpts !== void 0 ? _backoffOpts : {
                 timeouts: [],
-                retryableStatus: [],
+                statusCodes: [],
+            };
+            const throttleOpts = _throttleOpts !== null && _throttleOpts !== void 0 ? _throttleOpts : {
+                timeout: 0,
+                statusCodes: [],
             };
             const fetchInit = _fetchInit;
             let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
@@ -88,9 +106,10 @@ export default class SimpleApiClient {
                 const _f = f; // dont allow underlying fetch change mid-backoff
                 res = yield backoff(Object.assign(Object.assign({}, backoffOpts), { signal: fetchInit.signal }), ({ retry, signal }) => __awaiter(this, void 0, void 0, function* () {
                     try {
+                        if (this.isThrottling) {
+                            yield this.throttleTimeout(0, signal); // duration doesn't matter, memoized
+                        }
                         res = yield _f(fetchPath, Object.assign(Object.assign({}, fetchInit), { signal }));
-                        const retryable = isRetryable(backoffOpts.retryableStatus, res.status);
-                        const unexpected = isUnexpected(expectedStatus, res.status);
                         const debug = {
                             expectedStatus,
                             status: res.status,
@@ -98,10 +117,18 @@ export default class SimpleApiClient {
                             path,
                             init: _fetchInit,
                         };
-                        if (retryable) {
-                            throw new StatusCodeError(`unexpected status`, Object.assign(Object.assign({}, debug), { retryable }));
+                        if (statusMatches(res.status, throttleOpts.statusCodes)) {
+                            const throttleDuration = typeof throttleOpts.timeout === 'number'
+                                ? throttleOpts.timeout
+                                : throttleOpts.timeout(res, path, init);
+                            // start timeout promise but don't await, throttle will be effective for future requests (above)
+                            this.throttleTimeout(throttleDuration, signal);
                         }
-                        if (unexpected) {
+                        if (statusMatches(res.status, backoffOpts.statusCodes)) {
+                            throw new StatusCodeError(`unexpected status`, Object.assign(Object.assign({}, debug), { retryable: true }));
+                        }
+                        if (expectedStatus != null &&
+                            !statusMatches(res.status, expectedStatus)) {
                             throw new StatusCodeError(`unexpected status`, debug);
                         }
                         return res;
@@ -287,21 +314,16 @@ function getMethodArgs(expectedStatus, init) {
     }
     return [_expectedStatus, _init];
 }
-function isUnexpected(expectedStatus, statusCode) {
-    if (expectedStatus == null)
+function statusMatches(statusCode, match) {
+    if (match == null)
         return false;
+    if (typeof match === 'number')
+        return match === statusCode;
     // @ts-ignore
-    if (expectedStatus.test) {
-        return expectedStatus.test(statusCode.toString());
+    if (match.test) {
+        return match.test(statusCode.toString());
     }
-    return expectedStatus !== statusCode;
-}
-function isRetryable(retryableStatus, statusCode) {
-    // @ts-ignore
-    if (retryableStatus.test) {
-        return retryableStatus.test(statusCode.toString());
-    }
-    const retryableStatusSet = new Set(retryableStatus);
-    return retryableStatusSet.has(statusCode);
+    const statusCodes = new Set(match);
+    return statusCodes.has(statusCode);
 }
 //# sourceMappingURL=index.js.map

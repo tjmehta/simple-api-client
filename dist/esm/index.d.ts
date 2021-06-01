@@ -26,7 +26,11 @@ export declare class InvalidResponseError extends BaseError<{
 }> {
 }
 export declare type ExtendedBackoffOpts = BackoffOpts & {
-    retryableStatus: RegExp | Iterable<number>;
+    statusCodes: RegExp | Iterable<number>;
+};
+export declare type ThrottleOpts<QueryType extends QueryParamsType, JsonType = {}> = {
+    statusCodes: RegExp | Iterable<number>;
+    timeout: number | ((res: Response, path: string, init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined) => number);
 };
 export { QueryParamsType } from './queryToString';
 export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, JsonType = {}> extends RequestInit {
@@ -35,14 +39,17 @@ export interface ExtendedRequestInit<QueryType extends QueryParamsType = {}, Jso
     query?: QueryType | null | undefined;
     expectedStatus?: number | RegExp | null | undefined;
     backoff?: ExtendedBackoffOpts | null | undefined;
+    throttle?: ThrottleOpts<QueryType, JsonType> | null | undefined;
 }
 export declare type GetRequestInit<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> = ((path: string, init?: ExtendedRequestInit | null | undefined) => ExtendedRequestInit<DefaultQueryType, DefaultJsonType>) | ((path: string, init?: ExtendedRequestInit | null | undefined) => Promise<ExtendedRequestInit<DefaultQueryType, DefaultJsonType>>);
 export declare type ToBody<Body = any> = (res: Response, path: string, init: RequestInit) => Promise<Body>;
 export default class SimpleApiClient<DefaultQueryType extends QueryParamsType = {}, DefaultJsonType = {}> {
+    protected isThrottling: boolean;
     protected readonly host: string;
     protected readonly getInit?: GetRequestInit<DefaultQueryType, DefaultJsonType>;
     protected readonly defaultInit?: ExtendedRequestInit<DefaultQueryType, DefaultJsonType>;
     constructor(host: string, getInit?: GetRequestInit<DefaultQueryType, DefaultJsonType> | ExtendedRequestInit<DefaultQueryType, DefaultJsonType>);
+    private throttleTimeout;
     private _fetch;
     fetch<QueryType extends QueryParamsType, JsonType = {}>(path: string, init?: ExtendedRequestInit<QueryType, JsonType> | null | undefined): Promise<Response>;
     body<Body = any, JsonType = {}, QueryType extends QueryParamsType = {}>(path: string, init: ExtendedRequestInit<QueryType, JsonType> & {
