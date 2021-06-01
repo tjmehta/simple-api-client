@@ -631,6 +631,7 @@ function statusMatches(
 ) {
   if (match == null) return false
   if (typeof match === 'number') return match === statusCode
+  // @ts-ignore
   if ((match as RegExp).test) {
     return (match as RegExp).test(statusCode.toString())
   }
