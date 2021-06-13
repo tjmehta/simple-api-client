@@ -16,6 +16,13 @@ export declare class StatusCodeError extends BaseError<{
     body?: any;
     retryable?: boolean;
 }> {
+    path: string;
+    init?: ExtendedRequestInit | null;
+    expectedStatus: number | RegExp | null | undefined;
+    status: number;
+    headers: Headers;
+    body?: any;
+    retryable?: boolean;
 }
 export declare class InvalidResponseError extends BaseError<{
     path: string;
@@ -24,6 +31,11 @@ export declare class InvalidResponseError extends BaseError<{
     headers: Headers;
     body?: any;
 }> {
+    path: string;
+    init?: ExtendedRequestInit | null;
+    status: number;
+    headers: Headers;
+    body?: any;
 }
 export declare type ExtendedBackoffOpts = BackoffOpts & {
     statusCodes: RegExp | Iterable<number>;

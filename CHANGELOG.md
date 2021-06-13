@@ -1,3 +1,7 @@
+# v3.0.1
+
+- fix: error property types
+
 # v3.0.0
 
 - breaking: changed backoff options for consistency with throttle options

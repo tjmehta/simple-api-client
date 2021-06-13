@@ -64,14 +64,28 @@ export class StatusCodeError extends BaseError<{
   headers: Headers
   body?: any
   retryable?: boolean
-}> {}
+}> {
+  path!: string
+  init?: ExtendedRequestInit | null
+  expectedStatus!: number | RegExp | null | undefined
+  status!: number
+  headers!: Headers
+  body?: any
+  retryable?: boolean
+}
 export class InvalidResponseError extends BaseError<{
   path: string
   init?: ExtendedRequestInit | null
   status: number
   headers: Headers
   body?: any
-}> {}
+}> {
+  path!: string
+  init?: ExtendedRequestInit | null
+  status!: number
+  headers!: Headers
+  body?: any
+}
 
 /*
  * exported types
