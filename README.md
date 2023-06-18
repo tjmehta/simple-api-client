@@ -1,6 +1,6 @@
 # simple-api-client [![Build Status](https://travis-ci.org/tjmehta/simple-api-client.svg?branch=master)](https://travis-ci.org/tjmehta/simple-api-client)
 
-create a quick simple extendable api client, powered by fetch, that has syntactic sugar for interacting with json APIs, and supports backoffs
+create a quick simple extendable http api client, powered by fetch, that has syntactic sugar for interacting with json APIs, and supports backoffs
 
 # Installation
 
