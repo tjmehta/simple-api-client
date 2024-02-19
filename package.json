@@ -50,6 +50,6 @@
     "is-regexp": "^2.1.0",
     "memoize-concurrent": "^1.2.2",
     "methods": "^1.1.2",
-    "promise-backoff": "^1.1.1"
+    "promise-backoff": "^1.1.3"
   }
 }

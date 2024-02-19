@@ -1,7 +1,6 @@
 import BaseError from 'baseerr';
-export declare type BodyType = Record<string, unknown>;
 export declare class BodyStringifyError extends BaseError<{
-    body: BodyType;
+    body: {};
 }> {
 }
-export default function bodyToString(body: BodyType): string;
+export default function bodyToString<BodyType extends {}>(body: BodyType): string;

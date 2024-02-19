@@ -7,11 +7,15 @@ import fetch from 'cross-fetch'
 const PORT = process.env.PORT || 3334
 
 describe('SimpleApiClient', () => {
-  let server: Server | undefined
+  let server: Server
   beforeEach(async () => {
     setFetch(fetch)
     server = createServer((req, res) => {
-      if (req.url === '/method') {
+      if (req.url == null) {
+        res.statusCode = 500
+        res.end('error: no url')
+        return
+      } else if (req.url === '/method') {
         res.statusCode = 200
         res.end(req.method)
       } else if (req.url === '/text') {
@@ -27,7 +31,7 @@ describe('SimpleApiClient', () => {
         res.statusCode = 200
         res.end(JSON.stringify(req.url))
       } else if (/^\/code/.test(req.url)) {
-        const statusCode = parseInt(req.url.split('=').pop(), 10)
+        const statusCode = parseInt(req.url.split('=').pop() as string, 10)
         if (isNaN(statusCode)) {
           res.statusCode = 500
           res.end('error: invalid status code')
@@ -56,10 +60,16 @@ describe('SimpleApiClient', () => {
   methods.forEach((method) => {
     it(`should make a ${method} request`, async () => {
       const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
-      const json = await apiClient[method]('/')
-      expect(json).toEqual({
-        message: 'hello world',
-      })
+      const result = await apiClient[method]('/')
+      if (method === 'options') {
+        const res = result as Response
+        expect(res.status).toEqual(200)
+      } else {
+        const body = result as {}
+        expect(body).toEqual({
+          message: 'hello world',
+        })
+      }
     })
   })
 
@@ -464,6 +474,7 @@ describe('SimpleApiClient', () => {
   })
 
   describe('fetch is not defined', () => {
+    // @ts-ignore
     beforeEach(() => setFetch(null))
 
     it('should error if fetch is not default', async () => {

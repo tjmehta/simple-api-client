@@ -1,24 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -58,11 +38,11 @@ exports.InvalidResponseError = InvalidResponseError;
 class SimpleApiClient {
     constructor(host, getInit) {
         this.isThrottling = false;
-        this.throttleTimeout = memoize_concurrent_1.default((duration, signal) => __awaiter(this, void 0, void 0, function* () {
+        this.throttleTimeout = memoize_concurrent_1.default(async (duration, signal) => {
             this.isThrottling = true;
-            yield abortable_timeout_1.default(duration, signal);
+            await abortable_timeout_1.default(duration, signal);
             this.isThrottling = false;
-        }), {
+        }, {
             cacheKey: () => 'all',
             signalAccessors: {
                 get: ([duration, signal]) => signal,
@@ -77,236 +57,294 @@ class SimpleApiClient {
             this.defaultInit = getInit;
         }
     }
-    _fetch(path, init) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            if (typeof f !== 'function') {
-                throw new FetchMissingError('fetch is not a function, use setFetch to set a fetch function', { fetch: f });
-            }
-            let extendedInit = this.getInit
-                ? yield this.getInit(path, init)
-                : init || {};
-            extendedInit = Object.assign(Object.assign(Object.assign({}, this.defaultInit), extendedInit), { headers: Object.assign(Object.assign({}, (_a = this.defaultInit) === null || _a === void 0 ? void 0 : _a.headers), extendedInit.headers) });
-            const { expectedStatus, json, query, backoff: _backoffOpts, throttle: _throttleOpts } = extendedInit, _fetchInit = __rest(extendedInit, ["expectedStatus", "json", "query", "backoff", "throttle"]);
-            const backoffOpts = _backoffOpts !== null && _backoffOpts !== void 0 ? _backoffOpts : {
-                timeouts: [],
-                statusCodes: [],
+    async _fetch(path, init) {
+        if (typeof f !== 'function') {
+            throw new FetchMissingError('fetch is not a function, use setFetch to set a fetch function', { fetch: f });
+        }
+        let extendedInit = this.getInit && init != null
+            ? await this.getInit(path, init)
+            : init || {};
+        extendedInit = {
+            ...this.defaultInit,
+            ...extendedInit,
+            headers: {
+                ...this.defaultInit?.headers,
+                ...extendedInit.headers,
+            },
+        };
+        const { expectedStatus, json, query, backoff: _backoffOpts, throttle: _throttleOpts, ..._fetchInit } = extendedInit;
+        const backoffOpts = _backoffOpts ?? {
+            timeouts: [],
+            statusCodes: [],
+        };
+        const throttleOpts = _throttleOpts ?? {
+            timeout: 0,
+            statusCodes: [],
+        };
+        const fetchInit = _fetchInit;
+        let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
+        if (json != null) {
+            fetchInit.body = bodyToString_1.default(json);
+            fetchInit.headers = {
+                accept: 'application/json',
+                'content-type': 'application/json',
+                ...fetchInit.headers,
             };
-            const throttleOpts = _throttleOpts !== null && _throttleOpts !== void 0 ? _throttleOpts : {
-                timeout: 0,
-                statusCodes: [],
-            };
-            const fetchInit = _fetchInit;
-            let fetchPath = `${this.host}/${path.replace(/^\//, '')}`;
-            if (json != null) {
-                fetchInit.body = bodyToString_1.default(json);
-                fetchInit.headers = Object.assign({ accept: 'application/json', 'content-type': 'application/json' }, fetchInit.headers);
+        }
+        if (query != null) {
+            const queryString = queryToString_1.default(query);
+            if (queryString.length) {
+                fetchPath = `${fetchPath}?${queryString}`;
             }
-            if (query != null) {
-                const queryString = queryToString_1.default(query);
-                if (queryString.length) {
-                    fetchPath = `${fetchPath}?${queryString}`;
+        }
+        if (fetchInit.method) {
+            // force method to be uppercase always
+            fetchInit.method = fetchInit.method.toUpperCase();
+        }
+        let res = null;
+        try {
+            const _f = f; // dont allow underlying fetch change mid-backoff
+            res = await promise_backoff_1.default({ ...backoffOpts, signal: fetchInit.signal }, async ({ retry, signal }) => {
+                try {
+                    if (this.isThrottling) {
+                        await this.throttleTimeout(0, signal); // duration doesn't matter, memoized
+                    }
+                    res = await _f(fetchPath, { ...fetchInit, signal });
+                    const debug = {
+                        expectedStatus,
+                        status: res.status,
+                        headers: res.headers,
+                        path,
+                        init: _fetchInit,
+                    };
+                    if (statusMatches(res.status, throttleOpts.statusCodes)) {
+                        const throttleDuration = typeof throttleOpts.timeout === 'number'
+                            ? throttleOpts.timeout
+                            : throttleOpts.timeout(res, path, init);
+                        // start timeout promise but don't await, throttle will be effective for future requests (above)
+                        this.throttleTimeout(throttleDuration, signal);
+                    }
+                    if (statusMatches(res.status, backoffOpts.statusCodes)) {
+                        throw new StatusCodeError(`unexpected status`, {
+                            ...debug,
+                            retryable: true,
+                        });
+                    }
+                    if (expectedStatus != null &&
+                        !statusMatches(res.status, expectedStatus)) {
+                        throw new StatusCodeError(`unexpected status`, debug);
+                    }
+                    return res;
                 }
-            }
-            if (fetchInit.method) {
-                // force method to be uppercase always
-                fetchInit.method = fetchInit.method.toUpperCase();
-            }
-            let res = null;
-            try {
-                const _f = f; // dont allow underlying fetch change mid-backoff
-                res = yield promise_backoff_1.default(Object.assign(Object.assign({}, backoffOpts), { signal: fetchInit.signal }), ({ retry, signal }) => __awaiter(this, void 0, void 0, function* () {
-                    try {
-                        if (this.isThrottling) {
-                            yield this.throttleTimeout(0, signal); // duration doesn't matter, memoized
-                        }
-                        res = yield _f(fetchPath, Object.assign(Object.assign({}, fetchInit), { signal }));
-                        const debug = {
-                            expectedStatus,
-                            status: res.status,
-                            headers: res.headers,
-                            path,
-                            init: _fetchInit,
-                        };
-                        if (statusMatches(res.status, throttleOpts.statusCodes)) {
-                            const throttleDuration = typeof throttleOpts.timeout === 'number'
-                                ? throttleOpts.timeout
-                                : throttleOpts.timeout(res, path, init);
-                            // start timeout promise but don't await, throttle will be effective for future requests (above)
-                            this.throttleTimeout(throttleDuration, signal);
-                        }
-                        if (statusMatches(res.status, backoffOpts.statusCodes)) {
-                            throw new StatusCodeError(`unexpected status`, Object.assign(Object.assign({}, debug), { retryable: true }));
-                        }
-                        if (expectedStatus != null &&
-                            !statusMatches(res.status, expectedStatus)) {
-                            throw new StatusCodeError(`unexpected status`, debug);
-                        }
-                        return res;
-                    }
-                    catch (err) {
-                        if (err.name === 'AbortError')
-                            throw err;
-                        if (err instanceof StatusCodeError) {
-                            if (err.retryable)
-                                return retry(err);
-                            throw err;
-                        }
-                        return retry(NetworkError.wrap(err, 'network error', {
-                            path,
-                            init,
-                        }));
-                    }
-                }));
-            }
-            catch (err) {
-                return [err, res, fetchPath, fetchInit];
-            }
-            return [null, res, fetchPath, fetchInit];
-        });
-    }
-    fetch(path, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const [err, res] = yield this._fetch(path, init);
-            if (err)
-                throw err;
-            return res;
-        });
-    }
-    // convenience fetch method for text
-    body(path, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const { toBody } = init, _init = __rest(init, ["toBody"]);
-            const [err, res, fetchPath, fetchInit] = yield this._fetch(path, _init);
-            if (err) {
-                if (err instanceof StatusCodeError) {
-                    try {
-                        // @ts-ignore
-                        err.body = yield toBody(res, fetchPath, fetchInit);
-                    }
-                    finally {
+                catch (_err) {
+                    const err = _err;
+                    if (err.name === 'AbortError')
+                        throw err;
+                    if (err instanceof StatusCodeError) {
+                        if (err.retryable)
+                            return retry(err);
                         throw err;
                     }
+                    return retry(NetworkError.wrap(err, 'network error', {
+                        path,
+                        init,
+                    }));
                 }
-                throw err;
+            });
+        }
+        catch (_err) {
+            const err = _err;
+            return [err, res, fetchPath, fetchInit];
+        }
+        return [null, res, fetchPath, fetchInit];
+    }
+    async fetch(path, init) {
+        const [err, res] = await this._fetch(path, init);
+        if (err)
+            throw err;
+        return res;
+    }
+    // convenience fetch method for text
+    async body(path, init) {
+        // check arguments
+        const { toBody, ..._init } = init;
+        const [err, res, fetchPath, fetchInit] = await this._fetch(path, _init);
+        if (err) {
+            if (err instanceof StatusCodeError) {
+                try {
+                    // @ts-ignore
+                    err.body = await toBody(res, fetchPath, fetchInit);
+                }
+                finally {
+                    throw err;
+                }
             }
-            const resp = res;
-            try {
-                return yield toBody(resp, fetchPath, fetchInit);
-            }
-            catch (err) {
-                throw InvalidResponseError.wrap(err, 'invalid response', {
-                    status: resp.status,
-                    headers: resp.headers,
-                    path,
-                    init: fetchInit,
-                });
-            }
-        });
+            throw err;
+        }
+        const resp = res;
+        try {
+            return await toBody(resp, fetchPath, fetchInit);
+        }
+        catch (_err) {
+            const err = _err;
+            throw InvalidResponseError.wrap(err, 'invalid response', {
+                status: resp.status,
+                headers: resp.headers,
+                path,
+                init: fetchInit,
+            });
+        }
     }
     // convenience fetch methods for various response types
-    arrayBuffer(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+    async arrayBuffer(path, expectedStatus, init) {
+        // check arguments
+        const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+            ? { expectedStatus: expectedStatus, ...init }
+            : expectedStatus != null
                 ? expectedStatus
                 : init;
-            // make request
-            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.arrayBuffer() }));
+        // make request
+        return await this.body(path, {
+            ..._init,
+            headers: {
+                accept: 'application/octet-stream',
+                ..._init?.headers,
+            },
+            toBody: (res) => res.arrayBuffer(),
         });
     }
-    blob(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+    async blob(path, expectedStatus, init) {
+        // check arguments
+        const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+            ? { expectedStatus: expectedStatus, ...init }
+            : expectedStatus != null
                 ? expectedStatus
                 : init;
-            // make request
-            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/octet-stream' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.blob() }));
+        // make request
+        return await this.body(path, {
+            ..._init,
+            headers: {
+                accept: 'application/octet-stream',
+                ..._init?.headers,
+            },
+            toBody: (res) => res.blob(),
         });
     }
-    text(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+    async text(path, expectedStatus, init) {
+        // check arguments
+        const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+            ? { expectedStatus: expectedStatus, ...init }
+            : expectedStatus != null
                 ? expectedStatus
                 : init;
-            // make request
-            return this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'text/plain; charset=utf-8' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.text() }));
+        // make request
+        return this.body(path, {
+            ..._init,
+            headers: {
+                accept: 'text/plain; charset=utf-8',
+                ..._init?.headers,
+            },
+            toBody: (res) => res.text(),
         });
     }
-    json(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
-                ? Object.assign({ expectedStatus: expectedStatus }, init) : expectedStatus != null
+    async json(path, expectedStatus, init) {
+        // check arguments
+        const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+            ? { expectedStatus: expectedStatus, ...init }
+            : expectedStatus != null
                 ? expectedStatus
                 : init;
-            // make request
-            return yield this.body(path, Object.assign(Object.assign({}, _init), { headers: Object.assign({ accept: 'application/json' }, _init === null || _init === void 0 ? void 0 : _init.headers), toBody: (res) => res.json() }));
+        // make request
+        return await this.body(path, {
+            ..._init,
+            headers: {
+                accept: 'application/json',
+                ..._init?.headers,
+            },
+            toBody: (res) => res.json(),
+        });
+    }
+    async none(path, expectedStatus, init) {
+        // check arguments
+        const _init = isNumber(expectedStatus) || is_regexp_1.default(expectedStatus)
+            ? { expectedStatus: expectedStatus, ...init }
+            : expectedStatus != null
+                ? expectedStatus
+                : init;
+        // make request
+        return await this.body(path, {
+            ..._init,
+            headers: {
+                accept: 'application/json',
+                ..._init?.headers,
+            },
+            toBody: (res) => Promise.resolve(),
         });
     }
     // response bodyless methods
-    head(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.fetch(path, Object.assign(Object.assign({}, _init), { method: 'HEAD' }));
+    async head(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make json request
+        return this.fetch(path, {
+            ..._init,
+            method: 'HEAD',
         });
     }
     // request bodyless methods
-    get(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'GET' }));
+    async get(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make json request
+        return this.json(path, _expectedStatus, {
+            ..._init,
+            method: 'GET',
         });
     }
-    options(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'OPTIONS' }));
+    async options(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make request
+        return this.fetch(path, {
+            ..._init,
+            method: 'OPTIONS',
         });
     }
     // request and response body methods
-    post(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'POST' }));
+    async post(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make json request
+        return this.json(path, _expectedStatus, {
+            ..._init,
+            method: 'POST',
         });
     }
-    put(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'PUT' }));
+    async put(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make json request
+        return this.json(path, _expectedStatus, {
+            ..._init,
+            method: 'PUT',
         });
     }
-    delete(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'DELETE' }));
+    async delete(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make json request
+        return this.json(path, _expectedStatus, {
+            ..._init,
+            method: 'DELETE',
         });
     }
-    patch(path, expectedStatus, init) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check arguments
-            const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
-            // make json request
-            return this.json(path, _expectedStatus, Object.assign(Object.assign({}, _init), { method: 'PATCH' }));
+    async patch(path, expectedStatus, init) {
+        // check arguments
+        const [_expectedStatus, _init] = getMethodArgs(expectedStatus, init);
+        // make json request
+        return this.json(path, _expectedStatus, {
+            ..._init,
+            method: 'PATCH',
         });
     }
 }

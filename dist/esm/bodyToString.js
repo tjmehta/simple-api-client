@@ -5,7 +5,8 @@ export default function bodyToString(body) {
     try {
         return JSON.stringify(body);
     }
-    catch (err) {
+    catch (_err) {
+        const err = _err;
         throw BodyStringifyError.wrap(err, 'cannot stringify body', {
             body,
         });
