@@ -138,6 +138,7 @@ describe('SimpleApiClient', () => {
     const apiClient = new SimpleApiClient(`http://localhost:${PORT}`)
     const arrayBuffer = await apiClient.arrayBuffer('text', 200)
     expect(arrayBuffer).toMatchInlineSnapshot(`ArrayBuffer []`)
+    // @ts-ignore
     const blob = new Blob([new Uint8Array(arrayBuffer)])
     const text = await blobToString(blob)
     expect(text).toMatchInlineSnapshot(`"text body response"`)

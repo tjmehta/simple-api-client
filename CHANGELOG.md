@@ -1,3 +1,9 @@
+# v4.0.0
+
+- major: build for ES2020
+- major: changed options method yield response instead of json
+- minor: typing overhaul
+
 # v3.0.1
 
 - fix: error property types
