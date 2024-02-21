@@ -1,15 +1,16 @@
 import BaseError from 'baseerr'
 
-export type BodyType = Record<string, unknown>
-
 export class BodyStringifyError extends BaseError<{
-  body: BodyType
+  body: {}
 }> {}
 
-export default function bodyToString(body: BodyType): string {
+export default function bodyToString<BodyType extends {}>(
+  body: BodyType,
+): string {
   try {
     return JSON.stringify(body)
-  } catch (err) {
+  } catch (_err) {
+    const err = _err as Error
     throw BodyStringifyError.wrap(err, 'cannot stringify body', {
       body,
     })
