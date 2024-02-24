@@ -1,3 +1,7 @@
+# v4.0.1
+
+- patch: log cleanup
+
 # v4.0.0
 
 - major: build for ES2020

@@ -109,9 +109,7 @@ class SimpleApiClient {
                     if (this.isThrottling) {
                         await this.throttleTimeout(0, signal); // duration doesn't matter, memoized
                     }
-                    console.log('FETCH!!!!', fetchPath);
                     res = await _f(fetchPath, { ...fetchInit, signal });
-                    console.log('RESPONSE!!!!', res.status);
                     const debug = {
                         expectedStatus,
                         status: res.status,
