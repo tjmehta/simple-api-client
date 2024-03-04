@@ -45,11 +45,11 @@
     "typescript": "^3.9.3"
   },
   "dependencies": {
-    "abortable-timeout": "^1.0.1",
-    "baseerr": "^1.0.1",
-    "is-regexp": "^2.1.0",
-    "memoize-concurrent": "^1.2.2",
+    "abortable-timeout": "^3.0.1",
+    "baseerr": "^2.0.1",
+    "is-regexp": "^3.1.0",
+    "memoize-concurrent": "^2.0.0",
     "methods": "^1.1.2",
-    "promise-backoff": "^1.1.3"
+    "promise-backoff": "^2.0.0"
   }
 }

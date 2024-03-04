@@ -1,3 +1,7 @@
+# v4.0.2
+
+- patch: deps updates
+
 # v4.0.1
 
 - patch: log cleanup
