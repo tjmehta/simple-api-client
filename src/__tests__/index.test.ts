@@ -221,25 +221,24 @@ describe('SimpleApiClient', () => {
         })
       } catch (err) {
         expect(JSON.parse(JSON.stringify(err))).toMatchInlineSnapshot(`
-          Object {
-            "body": Object {
-              "foo": "bar",
-            },
-            "expectedStatus": 201,
-            "headers": Object {},
-            "init": Object {
-              "body": "{\\"foo\\":\\"bar\\"}",
-              "headers": Object {
-                "accept": "application/json",
-                "content-type": "application/json",
-              },
-              "method": "POST",
-            },
-            "name": "StatusCodeError",
-            "path": "body",
-            "status": 200,
-          }
-        `)
+Object {
+  "body": Object {
+    "foo": "bar",
+  },
+  "expectedStatus": 201,
+  "headers": Object {},
+  "init": Object {
+    "body": "{\\"foo\\":\\"bar\\"}",
+    "headers": Object {
+      "accept": "application/json",
+      "content-type": "application/json",
+    },
+    "method": "POST",
+  },
+  "path": "body",
+  "status": 200,
+}
+`)
         throw err
       }
     }).rejects.toMatchInlineSnapshot(`[StatusCodeError: unexpected status]`)
@@ -252,18 +251,17 @@ describe('SimpleApiClient', () => {
         await apiClient.json<{ foo: string }>('text', 200)
       } catch (err) {
         expect(JSON.parse(JSON.stringify(err))).toMatchInlineSnapshot(`
-          Object {
-            "headers": Object {},
-            "init": Object {
-              "headers": Object {
-                "accept": "application/json",
-              },
-            },
-            "name": "InvalidResponseError",
-            "path": "text",
-            "status": 200,
-          }
-        `)
+Object {
+  "headers": Object {},
+  "init": Object {
+    "headers": Object {
+      "accept": "application/json",
+    },
+  },
+  "path": "text",
+  "status": 200,
+}
+`)
         throw err
       }
     }).rejects.toMatchInlineSnapshot(`[InvalidResponseError: invalid response]`)

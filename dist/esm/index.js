@@ -2,7 +2,7 @@ import backoff from 'promise-backoff';
 import queryToString from './queryToString';
 import BaseError from 'baseerr';
 import bodyToString from './bodyToString';
-import isRegExp from 'is-regexp';
+import isRegExp from './isRegExp';
 import memoizeConcurrent from 'memoize-concurrent';
 import timeout from 'abortable-timeout';
 const isNumber = (n) => typeof n === 'number';

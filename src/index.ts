@@ -3,7 +3,7 @@ import queryToString, { QueryParamsType } from './queryToString'
 
 import BaseError from 'baseerr'
 import bodyToString from './bodyToString'
-import isRegExp from 'is-regexp'
+import isRegExp from './isRegExp'
 import memoizeConcurrent from 'memoize-concurrent'
 import timeout from 'abortable-timeout'
 
@@ -718,7 +718,7 @@ function getMethodArgs<
     typeof expectedStatus === 'number' ||
     isRegExp(expectedStatus)
   ) {
-    _expectedStatus = expectedStatus
+    _expectedStatus = expectedStatus as number | RegExp | undefined | null
     _init = init
   } else {
     _init = expectedStatus as ExtendedRequestInit<QueryType, JsonType>
