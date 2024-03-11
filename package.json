@@ -2,11 +2,16 @@
   "name": "simple-api-client",
   "version": "4.0.3",
   "description": "quickly create a simple and extendable api-client",
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/esm/index.d.ts",
+  "type": "module",
   "scripts": {
     "prepublish": "npm run build",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "build": "npm run build-ts && npm run _build_esm_rename && npm run _build_cjs_rename",
+    "build-ts": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "_build_esm_rename": "rewrite-esm dist/esm",
+    "_build_cjs_rename": "rewrite-cjs dist/cjs",
     "test": "jest --coverage"
   },
   "repository": {
@@ -42,14 +47,14 @@
     "cross-fetch": "^3.0.5",
     "jest": "^27.0.1",
     "prettier": "^2.0.5",
+    "rewrite-cjs-esm-paths": "^1.0.3",
     "typescript": "^3.9.3"
   },
   "dependencies": {
-    "abortable-timeout": "^3.0.1",
-    "baseerr": "^2.0.1",
-    "memoize-concurrent": "^2.0.0",
+    "abortable-timeout": "^3.0.4",
+    "baseerr": "^2.0.4",
+    "memoize-concurrent": "^2.0.3",
     "methods": "^1.1.2",
-    "promise-backoff": "^2.0.0",
-    "simple-api-client": "^4.0.1"
+    "promise-backoff": "^2.0.4"
   }
 }

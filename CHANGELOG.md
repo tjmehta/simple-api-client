@@ -1,3 +1,8 @@
+# v4.0.4
+
+- patch: fix build files for exports
+- patch: update all the deps
+
 # v4.0.3
 
 - patch: fix dep import issue
