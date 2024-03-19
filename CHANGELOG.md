@@ -1,3 +1,7 @@
+# v4.0.5
+
+- patch: pkg exports fix
+
 # v4.0.4
 
 - patch: fix build files for exports

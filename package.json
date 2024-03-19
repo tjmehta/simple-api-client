@@ -6,6 +6,12 @@
   "module": "dist/esm/index.mjs",
   "types": "dist/esm/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.cjs",
+      "import": "./dist/esm/index.mjs"
+    }
+  },
   "scripts": {
     "prepublish": "npm run build",
     "build": "npm run build-ts && npm run _build_esm_rename && npm run _build_cjs_rename",
