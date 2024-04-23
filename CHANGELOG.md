@@ -1,3 +1,7 @@
+# v4.0.6
+
+- patch: pkg exports fix, incl types
+
 # v4.0.5
 
 - patch: pkg exports fix

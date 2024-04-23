@@ -9,7 +9,8 @@
   "exports": {
     ".": {
       "require": "./dist/cjs/index.cjs",
-      "import": "./dist/esm/index.mjs"
+      "import": "./dist/esm/index.mjs",
+      "types": "./dist/esm/index.d.ts"
     }
   },
   "scripts": {
